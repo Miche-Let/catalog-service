@@ -16,7 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@AutoConfigureRestDocs
+@AutoConfigureRestDocs(uriScheme = "http", uriHost = "localhost", uriPort = 19800)
 @ActiveProfiles("test")
 @Import(RestDocsConfig.class)
 public class ProductControllerTest {
