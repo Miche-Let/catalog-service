@@ -1,0 +1,15 @@
+= Catalog Service API Guide
+:doctype: book
+:icons: font
+:source-highlighter: highlightjs
+:toc: left
+:toclevels: 2
+
+== Health Check
+카탈로그 서비스의 가용 상태를 확인합니다.
+
+=== Request
+include::{snippets}/product-controller-test/health-check/http-request.adoc[]
+
+=== Response
+include::{snippets}/product-controller-test/health-check/http-response.adoc[]
