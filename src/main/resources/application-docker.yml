@@ -1,9 +1,9 @@
 spring:
     data:
         mongodb:
-            uri: mongodb://localhost:27017/michelet_catalog
+            uri: mongodb://mongo-db:27017/michelet_catalog
     kafka:
-        bootstrap-servers: localhost:9092
+        bootstrap-servers: kafka:9092
         consumer:
             group-id: catalog-service-consumer
             auto-offset-reset: earliest
@@ -15,4 +15,4 @@ spring:
 eureka:
     client:
         service-url:
-            defaultZone: http://localhost:8761/eureka/
+            defaultZone: http://eureka-server:8761/eureka/
