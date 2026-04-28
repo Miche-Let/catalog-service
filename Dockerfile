@@ -7,7 +7,8 @@ COPY build.gradle settings.gradle ./
 COPY src src
 
 RUN chmod +x ./gradlew
-RUN ./gradlew bootJar --no-daemon
+# 테스트와 Asciidoctor 문서 생성을 제외하고 빌드
+RUN ./gradlew bootJar -x test -x asciidoctor --no-daemon
 
 FROM eclipse-temurin:17-jre
 WORKDIR /app
