@@ -12,7 +12,14 @@ RUN ./gradlew bootJar --no-daemon
 FROM eclipse-temurin:17-jre
 WORKDIR /app
 
-COPY --from=builder /app/build/libs/*-SNAPSHOT.jar app.jar
+# 비관리자 실행을 위한 사용자 및 그룹 생성
+RUN addgroup --system spring && adduser --system spring --ingroup spring
+
+# 빌드된 jar 파일을 복사하면서 소유권을 spring 사용자에게 부여
+COPY --from=builder --chown=spring:spring /app/build/libs/*-SNAPSHOT.jar app.jar
+
+# 생성한 사용자로 전환
+USER spring
 
 EXPOSE 19800
 
