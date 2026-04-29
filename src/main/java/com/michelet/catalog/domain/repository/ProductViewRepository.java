@@ -10,4 +10,6 @@ public interface ProductViewRepository extends MongoRepository<ProductView, Stri
     // @Query 어노테이션 제거함!
     // Spring Data MongoDB가 'options' 배열 안의 'optionId' 필드를 자동으로 찾아줌
     Optional<ProductView> findByOptionsOptionId(UUID optionId);
+
+    Optional<ProductView> findByProductId(UUID productId);
 }
