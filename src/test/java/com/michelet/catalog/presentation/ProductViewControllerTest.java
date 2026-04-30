@@ -57,4 +57,25 @@ class ProductViewControllerTest {
 
         then(productViewQueryService).should().getProducts(eq(pageRequest));
     }
+
+    @Test
+    @DisplayName("성공: size=50(최대 허용값) 요청을 정상 처리한다.")
+    void getProducts_MaxPageSizeAccepted() throws Exception {
+        // given
+        ProductViewResponse response = new ProductViewResponse(
+            UUID.randomUUID(), UUID.randomUUID(), "테스트 상품", "카테고리", null, true, List.of()
+        );
+        PageRequest pageRequest = PageRequest.of(0, 50);
+        given(productViewQueryService.getProducts(eq(pageRequest)))
+            .willReturn(new PageImpl<>(List.of(response), pageRequest, 1));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/products")
+                .param("page", "0")
+                .param("size", "50"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.page.size").value(50));
+
+        then(productViewQueryService).should().getProducts(eq(pageRequest));
+    }
 }
