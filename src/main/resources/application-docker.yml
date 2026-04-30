@@ -2,6 +2,7 @@ spring:
     data:
         mongodb:
             uri: mongodb://mongo-db:27017/michelet_catalog
+            uuid-representation: standard  # MongoDB 표준 UUID 사용
     kafka:
         bootstrap-servers: kafka:9092
         consumer:
@@ -10,7 +11,9 @@ spring:
             key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
             value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
             properties:
-                spring.json.trusted.packages: "com.michelet.catalog"
+                spring.json.trusted.packages: "com.michelet.*"
+                spring.json.use.type.headers: false
+                spring.json.value.default.type: com.michelet.catalog.infrastructure.messaging.dto.StockReservedEvent # 기본 객체 매핑
 
 eureka:
     client:
