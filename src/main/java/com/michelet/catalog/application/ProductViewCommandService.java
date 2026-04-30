@@ -18,11 +18,9 @@ public class ProductViewCommandService {
      * 재고 예약 이벤트를 처리하여 MongoDB 데이터를 갱신함
      */
     public void applyStockReservedEvent(StockReservedEvent event) {
-        if (event == null || event.optionId() == null ||
-            event.totalQuantity() == null || event.totalQuantity() < 0 ||
-            event.currentDailyStock() == null || event.currentDailyStock() < 0) {
-            log.warn("유효하지 않은 재고 이벤트 페이로드 무시됨: {}", event);
-            return;
+        // 이벤트 객체 자체가 null인지 가장 먼저 확인
+        if (event == null) {
+            throw new IllegalArgumentException("이벤트 페이로드가 null입니다.");
         }
 
         log.info("재고 차감 이벤트 수신: optionId={}, total={}, daily={}",
