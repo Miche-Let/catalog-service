@@ -1,5 +1,6 @@
 package com.michelet.catalog.application;
 
+import com.michelet.catalog.domain.exception.ProductNotFoundException;
 import com.michelet.catalog.domain.model.ProductView;
 import com.michelet.catalog.domain.repository.ProductViewRepository;
 import com.michelet.catalog.infrastructure.messaging.dto.StockReservedEvent;
@@ -28,7 +29,7 @@ public class ProductViewCommandService {
 
         // 1. 해당 옵션을 가지고 있는 상품 문서 찾기
         ProductView productView = productViewRepository.findByOptionsOptionId(event.optionId())
-            .orElseThrow(() -> new IllegalArgumentException("해당 옵션을 가진 상품을 찾을 수 없습니다: " + event.optionId()));
+            .orElseThrow(ProductNotFoundException::new);
 
         // 2. 문서 내의 재고 데이터를 업데이트
         productView.updateStock(event.optionId(), event.totalQuantity(), event.currentDailyStock());
