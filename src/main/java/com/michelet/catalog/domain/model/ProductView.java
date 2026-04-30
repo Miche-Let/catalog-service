@@ -4,17 +4,20 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 @Document(collection = "p_product_views")
+@CompoundIndex(def = "{'options.option_id': 1}") // 중첩 필드에 대한 인덱스 추가
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ProductView {
@@ -58,7 +61,6 @@ public class ProductView {
     public static class Display {
         @Field("start_at")
         private LocalDateTime startAt;
-
         @Field("end_at")
         private LocalDateTime endAt;
 
@@ -104,7 +106,7 @@ public class ProductView {
         }
 
         for (OptionView option : this.options) {
-            if (option.getOptionId().equals(targetOptionId)) {
+            if (option != null && Objects.equals(option.getOptionId(), targetOptionId)) {
                 option.totalQuantity = newTotalQuantity;
                 option.currentDailyStock = newCurrentDailyStock;
                 break;
