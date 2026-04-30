@@ -1,5 +1,6 @@
 package com.michelet.catalog.application;
 
+import com.michelet.catalog.domain.exception.ProductNotFoundException;
 import com.michelet.catalog.domain.repository.ProductViewRepository;
 import com.michelet.catalog.presentation.dto.ProductViewResponse;
 import java.util.UUID;
@@ -20,8 +21,9 @@ public class ProductViewQueryService {
     }
 
     public ProductViewResponse getProduct(UUID productId) {
+        // Application 계층이 Web 계층의 상태 코드를 직접 반환하지 않도록... 순수 도메인 예외를 정의해 던짐
         return productViewRepository.findByProductId(productId)
             .map(ProductViewResponse::from)
-            .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. ID: " + productId));
+            .orElseThrow(ProductNotFoundException::new);
     }
 }

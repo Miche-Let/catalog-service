@@ -90,6 +90,6 @@ class ProductViewQueryServiceTest {
         // when & then
         assertThatThrownBy(() -> productViewQueryService.getProduct(productId))
             .isInstanceOf(ProductNotFoundException.class)
-            .hasMessageContaining("상품을 찾을 수 없습니다");
+            .hasMessageContaining("해당 상품을 찾을 수 없습니다");
     }
 }
