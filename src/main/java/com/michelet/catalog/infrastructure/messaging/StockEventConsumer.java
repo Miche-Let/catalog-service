@@ -16,11 +16,8 @@ public class StockEventConsumer {
 
     @KafkaListener(topics = "stock.reserved", groupId = "catalog-service-consumer")
     public void consumeStockReservedEvent(StockReservedEvent event) {
-        try {
-            productViewCommandService.applyStockReservedEvent(event);
-        } catch (Exception e) {
-            log.error("stock.reserved 이벤트 처리 중 오류 발생: {}", event, e);
-            // TODO: DLT(Dead Letter Topic)로 전송하거나 재시도 로직 추가 (추후 구현?)
-        }
+        log.info("stock.reserved 이벤트 수신: {}", event);
+        // KafkaListener Container가 에러를 인지하고 재시도 할 수 있도록
+        productViewCommandService.applyStockReservedEvent(event);
     }
 }
