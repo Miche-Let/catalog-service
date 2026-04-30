@@ -1,7 +1,8 @@
 package com.michelet.catalog.presentation;
 
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -37,7 +38,7 @@ class ProductViewControllerTest {
         );
         PageRequest pageRequest = PageRequest.of(0, 20);
         // 1개의 요소를 가진 페이지 Mock 응답 생성
-        given(productViewQueryService.getProducts(any()))
+        given(productViewQueryService.getProducts(eq(pageRequest)))
             .willReturn(new PageImpl<>(List.of(response), pageRequest, 1));
 
         // when & then
@@ -53,5 +54,7 @@ class ProductViewControllerTest {
             .andExpect(jsonPath("$.page.number").value(0))
             .andExpect(jsonPath("$.page.totalElements").value(1))
             .andExpect(jsonPath("$.page.totalPages").value(1));
+
+        then(productViewQueryService).should().getProducts(eq(pageRequest));
     }
 }
