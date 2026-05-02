@@ -26,6 +26,12 @@ public class ProductViewCommandService {
             throw new IllegalArgumentException("이벤트 페이로드가 null입니다.");
         }
 
+        // 멱등성 보장 - 객체 생성 전에 가장 먼저 중복 여부를 검사
+        if (productViewRepository.findByProductId(event.productId()).isPresent()) {
+            log.warn("중복 product.created 이벤트 무시: productId={}", event.productId());
+            return;
+        }
+
         log.info("product.created 이벤트 수신 - 상품 등록 초기 데이터 적재: productId={}", event.productId());
 
         List<OptionView> optionViews = event.options().stream()

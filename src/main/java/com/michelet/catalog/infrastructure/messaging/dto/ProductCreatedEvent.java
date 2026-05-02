@@ -2,8 +2,10 @@ package com.michelet.catalog.infrastructure.messaging.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 public record ProductCreatedEvent(
@@ -16,6 +18,17 @@ public record ProductCreatedEvent(
     LocalDateTime endAt,
     List<OptionEventDto> options
 ) {
+    // 컴팩트 생성자 추가 - 필수 값 검증 및 컬렉션 불변 처리
+    public ProductCreatedEvent {
+        Objects.requireNonNull(productId, "productId는 필수입니다.");
+        Objects.requireNonNull(restaurantId, "restaurantId는 필수입니다.");
+        Objects.requireNonNull(name, "name은 필수입니다.");
+        Objects.requireNonNull(category, "category는 필수입니다.");
+
+        attributes = attributes == null ? Map.of() : Collections.unmodifiableMap(attributes);
+        options = options == null ? List.of() : List.copyOf(options);
+    }
+
     public record OptionEventDto(
         UUID optionId,
         String name,
@@ -23,5 +36,17 @@ public record ProductCreatedEvent(
         Integer totalQuantity,
         Integer currentDailyStock
     ) {
+        // 컴팩트 생성자 추가 - 옵션 필수 값 및 재고 수량 0 이상 검증
+        public OptionEventDto {
+            Objects.requireNonNull(optionId, "optionId는 필수입니다.");
+            Objects.requireNonNull(name, "옵션명은 필수입니다.");
+            Objects.requireNonNull(addPrice, "addPrice는 필수입니다.");
+            Objects.requireNonNull(totalQuantity, "totalQuantity는 필수입니다.");
+            Objects.requireNonNull(currentDailyStock, "currentDailyStock는 필수입니다.");
+
+            if (totalQuantity < 0 || currentDailyStock < 0) {
+                throw new IllegalArgumentException("재고 수량은 0 이상이어야 합니다.");
+            }
+        }
     }
 }
