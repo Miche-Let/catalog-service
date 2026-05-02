@@ -2,8 +2,11 @@ package com.michelet.catalog.application;
 
 import com.michelet.catalog.domain.exception.ProductNotFoundException;
 import com.michelet.catalog.domain.model.ProductView;
+import com.michelet.catalog.domain.model.ProductView.OptionView;
 import com.michelet.catalog.domain.repository.ProductViewRepository;
+import com.michelet.catalog.infrastructure.messaging.dto.ProductCreatedEvent;
 import com.michelet.catalog.infrastructure.messaging.dto.StockReservedEvent;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -14,6 +17,43 @@ import org.springframework.stereotype.Service;
 public class ProductViewCommandService {
 
     private final ProductViewRepository productViewRepository;
+
+    /**
+     * 상품 등록 이벤트를 처리 - MongoDB에 초기 데이터를 적재
+     */
+    public void createProductView(ProductCreatedEvent event) {
+        if (event == null) {
+            throw new IllegalArgumentException("이벤트 페이로드가 null입니다.");
+        }
+
+        log.info("product.created 이벤트 수신 - 상품 등록 초기 데이터 적재: productId={}", event.productId());
+
+        List<OptionView> optionViews = event.options().stream()
+            .map(opt -> new ProductView.OptionView(
+                opt.optionId(),
+                opt.name(),
+                opt.addPrice(),
+                opt.totalQuantity(),
+                opt.currentDailyStock()
+            ))
+            .toList();
+
+        ProductView.Display display = new ProductView.Display(event.startAt(), event.endAt());
+
+        ProductView productView = ProductView.builder()
+            .productId(event.productId())
+            .restaurantId(event.restaurantId())
+            .name(event.name())
+            .category(event.category())
+            .metadata(event.attributes())
+            .isVisible(false) // 등록 직후 is_visible = false 정책 반영 - TODO 나중에 시간에 맞춰 오픈되도록 해야함
+            .display(display)
+            .options(optionViews)
+            .build();
+
+        productViewRepository.save(productView);
+        log.info("MongoDB 초기 데이터 적재 완료: productId={}", productView.getProductId());
+    }
 
     /**
      * 재고 예약 이벤트를 처리하여 MongoDB 데이터를 갱신함

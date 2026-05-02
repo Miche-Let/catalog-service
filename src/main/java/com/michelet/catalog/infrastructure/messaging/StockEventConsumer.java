@@ -20,4 +20,8 @@ public class StockEventConsumer {
         // KafkaListener Container가 에러를 인지하고 재시도 할 수 있도록
         productViewCommandService.applyStockReservedEvent(event);
     }
+
+    //TODO 향후 추가될 리스너들:
+    // @KafkaListener(topics = "stock.restored", ...)
+    // @KafkaListener(topics = "stock.daily-reset", ...)
 }
