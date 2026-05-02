@@ -2,7 +2,6 @@ package com.michelet.catalog.infrastructure.messaging.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -25,7 +24,7 @@ public record ProductCreatedEvent(
         Objects.requireNonNull(name, "name은 필수입니다.");
         Objects.requireNonNull(category, "category는 필수입니다.");
 
-        attributes = attributes == null ? Map.of() : Collections.unmodifiableMap(attributes);
+        attributes = attributes == null ? Map.of() : Map.copyOf(attributes);
         options = options == null ? List.of() : List.copyOf(options);
     }
 
