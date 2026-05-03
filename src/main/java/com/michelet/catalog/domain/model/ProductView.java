@@ -35,6 +35,7 @@ public class ProductView {
 
     private String name;
     private String category;
+    private String status;
 
     @Field("base_price")
     private BigDecimal basePrice;
@@ -48,13 +49,15 @@ public class ProductView {
     private List<OptionView> options;
 
     @Builder
-    private ProductView(UUID productId, UUID restaurantId, String name, String category, BigDecimal basePrice,
+    private ProductView(UUID productId, UUID restaurantId, String name, String category, String status,
+                        BigDecimal basePrice,
                         Map<String, Object> metadata,
                         boolean isVisible, Display display, List<OptionView> options) {
         this.productId = productId;
         this.restaurantId = restaurantId;
         this.name = name;
         this.category = category;
+        this.status = status;
         this.basePrice = basePrice;
         this.metadata = metadata;
         this.isVisible = isVisible;
@@ -93,13 +96,28 @@ public class ProductView {
         @Field("current_daily_stock")
         private Integer currentDailyStock;
 
+        @Field("daily_limit")
+        private Integer dailyLimit;
+
         public OptionView(UUID optionId, String name, BigDecimal addPrice, Integer totalQuantity,
-                          Integer currentDailyStock) {
+                          Integer currentDailyStock, Integer dailyLimit) {
             this.optionId = optionId;
             this.name = name;
             this.addPrice = addPrice;
             this.totalQuantity = totalQuantity;
             this.currentDailyStock = currentDailyStock;
+            this.dailyLimit = dailyLimit;
+        }
+
+        // 재고 리셋을 위한 setter 대용 메서드
+        public void resetDailyStock() {
+            this.currentDailyStock = this.dailyLimit != null ? this.dailyLimit : this.totalQuantity;
+        }
+
+        // 재고 업데이트를 위한 메서드
+        public void updateStock(Integer total, Integer current) {
+            this.totalQuantity = total;
+            this.currentDailyStock = current;
         }
     }
 
@@ -113,9 +131,24 @@ public class ProductView {
 
         for (OptionView option : this.options) {
             if (option != null && Objects.equals(option.getOptionId(), targetOptionId)) {
-                option.totalQuantity = newTotalQuantity;
-                option.currentDailyStock = newCurrentDailyStock;
+                option.updateStock(newTotalQuantity, newCurrentDailyStock);
                 break;
+            }
+        }
+    }
+
+    // 전시 상태 변경
+    public void updateStatus(String status) {
+        this.status = status;
+        // 상태가 ACTIVE가 아니면 노출 여부(isVisible)도 자동으로 관리
+        this.isVisible = "ACTIVE".equals(status);
+    }
+
+    // 일일 재고 리셋
+    public void resetDailyStock() {
+        if (this.options != null) {
+            for (OptionView option : this.options) {
+                option.resetDailyStock();
             }
         }
     }
