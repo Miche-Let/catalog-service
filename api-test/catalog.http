@@ -11,7 +11,7 @@ Authorization: Bearer {{auth_token}}
 > {%
     client.test("전체 조회 성공", function () {
         client.assert(response.status === 200, "조회 실패");
-        client.assert(response.body.data.content !== undefined, "데이터가 없습니다.");
+        client.assert(response.body.content !== undefined, "데이터가 없습니다.");
     });
 %}
 
@@ -38,7 +38,7 @@ X-User-Role: SYSTEM
         client.assert(response.status === 200, "옵션 검증 API 호출 실패");
 
         // basePrice와 addPrice가 합산된 totalPrice가 200,000인지 확인
-        client.assert(response.body.totalPrice === 200000, "가격 합산 오류: " + response.body.data.totalPrice);
+        client.assert(response.body.data.totalPrice === 200000, "가격 합산 오류: " + response.body.data.totalPrice);
         client.log("최종 계산된 결제 가격: " + response.body.data.totalPrice);
     });
 %}
