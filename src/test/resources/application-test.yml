@@ -27,3 +27,5 @@ catalog:
             product-created: "product.created"
             stock-reserved: "stock.reserved"
             stock-restored: "stock.restored"
+            status-changed: "product.status-changed"
+            daily-reset: "stock.daily-reset"
