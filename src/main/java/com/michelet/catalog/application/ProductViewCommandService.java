@@ -4,7 +4,9 @@ import com.michelet.catalog.domain.exception.ProductNotFoundException;
 import com.michelet.catalog.domain.model.ProductView;
 import com.michelet.catalog.domain.model.ProductView.OptionView;
 import com.michelet.catalog.domain.repository.ProductViewRepository;
+import com.michelet.catalog.infrastructure.messaging.dto.DailyStockResetEvent;
 import com.michelet.catalog.infrastructure.messaging.dto.ProductCreatedEvent;
+import com.michelet.catalog.infrastructure.messaging.dto.ProductStatusChangedEvent;
 import com.michelet.catalog.infrastructure.messaging.dto.StockReservedEvent;
 import com.michelet.catalog.infrastructure.messaging.dto.StockRestoredEvent;
 import java.util.List;
@@ -41,7 +43,8 @@ public class ProductViewCommandService {
                 opt.name(),
                 opt.addPrice(),
                 opt.totalQuantity(),
-                opt.currentDailyStock()
+                opt.currentDailyStock(),
+                opt.dailyLimit()
             ))
             .toList();
 
@@ -52,9 +55,10 @@ public class ProductViewCommandService {
             .restaurantId(event.restaurantId())
             .name(event.name())
             .category(event.category())
+            .status("ACTIVE") // 초기 상태 세팅
             .basePrice(event.basePrice())
             .metadata(event.attributes())
-            .isVisible(true) // FIXME: 테스트 완료 후 다시 false로 원복 및 스케줄러 연동 - 나중에 시간에 맞춰 오픈되도록 해야함
+            .isVisible(true) // FIXME: 테스트 완료 후 다시 false로 원복 및 스케줄러 연동
             .display(display)
             .options(optionViews)
             .build();
@@ -108,5 +112,37 @@ public class ProductViewCommandService {
         // 3. MongoDB에 저장 (덮어쓰기)
         productViewRepository.save(productView);
         log.info("MongoDB 재고 복구 업데이트 완료: productId={}", productView.getProductId());
+    }
+
+    /**
+     * 상품 전시 상태 업데이트 이벤트를 처리함
+     */
+    public void updateProductStatus(ProductStatusChangedEvent event) {
+        if (event == null) {
+            throw new IllegalArgumentException("이벤트 페이로드가 null입니다.");
+        }
+
+        productViewRepository.findByProductId(event.productId())
+            .ifPresent(view -> {
+                view.updateStatus(event.newStatus());
+                productViewRepository.save(view);
+                log.info("MongoDB 상품 상태 동기화 완료: productId={}, status={}", event.productId(), event.newStatus());
+            });
+    }
+
+    /**
+     * 전체 상품 일일 재고 리셋 이벤트를 처리함
+     */
+    public void resetAllDailyStocks(DailyStockResetEvent event) {
+        if (event == null) {
+            throw new IllegalArgumentException("이벤트 페이로드가 null입니다.");
+        }
+
+        List<ProductView> allProducts = productViewRepository.findAll();
+        for (ProductView product : allProducts) {
+            product.resetDailyStock();
+        }
+        productViewRepository.saveAll(allProducts);
+        log.info("MongoDB 카탈로그 전체 일일 재고 리셋 완료: {}건", allProducts.size());
     }
 }
