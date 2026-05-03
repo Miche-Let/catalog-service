@@ -11,7 +11,7 @@ Authorization: Bearer {{auth_token}}
 > {%
     client.test("전체 조회 성공", function () {
         client.assert(response.status === 200, "조회 실패");
-        client.assert(response.body.content !== undefined, "데이터가 없습니다.");
+        client.assert(response.body.data.content !== undefined, "데이터가 없습니다.");
     });
 %}
 
@@ -22,13 +22,23 @@ Accept: application/json
 Authorization: Bearer {{auth_token}}
 
 > {%
-    client.test("상세 조회 및 데이터 동기화 확인", function () {
+    client.test("상세 조회 및 카프카 데이터 동기화 확인", function () {
         client.assert(response.status === 200, "상세 조회 실패");
-        client.assert(response.body.productId === client.global.get("shared_product_id"), "ID 불일치");
+        client.assert(response.body.data.productId === client.global.get("shared_product_id"), "ID 불일치(동기화 실패)");
     });
 %}
 
-### 3. [Internal] 옵션 검증 (현재 미구현)
-# GET http://{{host}}:{{catalogPort}}/internal/options/{{shared_option_id}}
-# X-User-Id: system-id
-# X-User-Role: SYSTEM
+### 3. [Internal] 옵션 검증 단건 유효성 및 가격 검증 API
+GET http://{{host}}:{{catalogPort}}/internal/options/{{shared_option_id}}/validate
+Accept: application/json
+X-User-Role: SYSTEM
+
+> {%
+    client.test("옵션 검증 및 가격 합산 로직 확인", function () {
+        client.assert(response.status === 200, "옵션 검증 API 호출 실패");
+
+        // basePrice와 addPrice가 합산된 totalPrice가 200,000인지 확인
+        client.assert(response.body.data.totalPrice === 200000, "가격 합산 오류: " + response.body.data.totalPrice);
+        client.log("최종 계산된 결제 가격: " + response.body.data.totalPrice);
+    });
+%}

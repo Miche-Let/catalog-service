@@ -1,8 +1,12 @@
 package com.michelet.catalog.application;
 
 import com.michelet.catalog.domain.exception.ProductNotFoundException;
+import com.michelet.catalog.domain.exception.ProductNotVisibleException;
+import com.michelet.catalog.domain.model.ProductView;
 import com.michelet.catalog.domain.repository.ProductViewRepository;
+import com.michelet.catalog.presentation.dto.OptionValidationResponse;
 import com.michelet.catalog.presentation.dto.ProductViewResponse;
+import java.math.BigDecimal;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -25,5 +29,27 @@ public class ProductViewQueryService {
         return productViewRepository.findByProductId(productId)
             .map(ProductViewResponse::from)
             .orElseThrow(ProductNotFoundException::new);
+    }
+
+    // 내부 통신용 옵션 유효성 검증 로직
+    public OptionValidationResponse validateOptionInternal(UUID optionId) {
+        // 1. 해당 옵션을 포함하는 상품 뷰 조회 (없으면 예외)
+        ProductView productView = productViewRepository.findByOptionsOptionId(optionId)
+            .orElseThrow(ProductNotFoundException::new);
+
+        // 2. 전시 상태 확인
+        if (!productView.isVisible()) {
+            throw new ProductNotVisibleException();
+        }
+
+        // 3. 옵션 상세 정보 추출
+        ProductView.OptionView option = productView.getOptions().stream()
+            .filter(o -> o.getOptionId().equals(optionId))
+            .findFirst()
+            .orElseThrow(ProductNotFoundException::new);
+
+        // 4. 총 가격(기본가 + 추가금액) 계산하여 반환
+        BigDecimal totalPrice = productView.getBasePrice().add(option.getAddPrice());
+        return new OptionValidationResponse(option.getOptionId(), option.getName(), totalPrice);
     }
 }
