@@ -24,7 +24,7 @@ Authorization: Bearer {{auth_token}}
 > {%
     client.test("상세 조회 및 카프카 데이터 동기화 확인", function () {
         client.assert(response.status === 200, "상세 조회 실패");
-        client.assert(response.body.data.productId === client.global.get("shared_product_id"), "ID 불일치(동기화 실패)");
+        client.assert(response.body.productId === client.global.get("shared_product_id"), "ID 불일치(동기화 실패)");
     });
 %}
 
@@ -38,7 +38,7 @@ X-User-Role: SYSTEM
         client.assert(response.status === 200, "옵션 검증 API 호출 실패");
 
         // basePrice와 addPrice가 합산된 totalPrice가 200,000인지 확인
-        client.assert(response.body.data.totalPrice === 200000, "가격 합산 오류: " + response.body.data.totalPrice);
+        client.assert(response.body.totalPrice === 200000, "가격 합산 오류: " + response.body.data.totalPrice);
         client.log("최종 계산된 결제 가격: " + response.body.data.totalPrice);
     });
 %}
