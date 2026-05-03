@@ -7,8 +7,9 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum CatalogErrorCode implements ErrorCode {
-    
-    PRODUCT_NOT_FOUND(404, "PRODUCT_001", "해당 상품을 찾을 수 없습니다.");
+
+    PRODUCT_NOT_FOUND(404, "PRODUCT_001", "해당 상품을 찾을 수 없습니다."),
+    PRODUCT_NOT_VISIBLE(400, "PRODUCT_002", "판매가 중지된 상품입니다.");
 
     private final int httpStatus;
     private final String code;

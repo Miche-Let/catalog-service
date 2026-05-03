@@ -20,3 +20,10 @@ spring:
 #    # data:
 #    #   mongodb:
 #    #     uri: mongodb://localhost:27017/test
+
+catalog:
+    kafka:
+        topic:
+            product-created: "product.created"
+            stock-reserved: "stock.reserved"
+            stock-restored: "stock.restored"

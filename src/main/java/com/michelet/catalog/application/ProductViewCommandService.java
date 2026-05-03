@@ -6,6 +6,7 @@ import com.michelet.catalog.domain.model.ProductView.OptionView;
 import com.michelet.catalog.domain.repository.ProductViewRepository;
 import com.michelet.catalog.infrastructure.messaging.dto.ProductCreatedEvent;
 import com.michelet.catalog.infrastructure.messaging.dto.StockReservedEvent;
+import com.michelet.catalog.infrastructure.messaging.dto.StockRestoredEvent;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -51,8 +52,9 @@ public class ProductViewCommandService {
             .restaurantId(event.restaurantId())
             .name(event.name())
             .category(event.category())
+            .basePrice(event.basePrice())
             .metadata(event.attributes())
-            .isVisible(false) // 등록 직후 is_visible = false 정책 반영 - TODO 나중에 시간에 맞춰 오픈되도록 해야함
+            .isVisible(true) // FIXME: 테스트 완료 후 다시 false로 원복 및 스케줄러 연동 - 나중에 시간에 맞춰 오픈되도록 해야함
             .display(display)
             .options(optionViews)
             .build();
@@ -82,6 +84,29 @@ public class ProductViewCommandService {
 
         // 3. MongoDB에 저장 (덮어쓰기)
         productViewRepository.save(productView);
-        log.info("MongoDB 재고 업데이트 완료: productId={}", productView.getProductId());
+        log.info("MongoDB 재고 차감 업데이트 완료: productId={}", productView.getProductId());
+    }
+
+    /**
+     * 재고 복구 이벤트를 처리하여 MongoDB 데이터를 갱신함
+     */
+    public void applyStockRestoredEvent(StockRestoredEvent event) {
+        if (event == null) {
+            throw new IllegalArgumentException("이벤트 페이로드가 null입니다.");
+        }
+
+        log.info("재고 복구 이벤트 수신: optionId={}, total={}, daily={}",
+            event.optionId(), event.totalQuantity(), event.currentDailyStock());
+
+        // 1. 해당 옵션을 가지고 있는 상품 문서 찾기
+        ProductView productView = productViewRepository.findByOptionsOptionId(event.optionId())
+            .orElseThrow(ProductNotFoundException::new);
+
+        // 2. 문서 내의 재고 데이터를 업데이트 (Inventory가 보내준 복구된 최종 재고로 덮어쓰기)
+        productView.updateStock(event.optionId(), event.totalQuantity(), event.currentDailyStock());
+
+        // 3. MongoDB에 저장 (덮어쓰기)
+        productViewRepository.save(productView);
+        log.info("MongoDB 재고 복구 업데이트 완료: productId={}", productView.getProductId());
     }
 }

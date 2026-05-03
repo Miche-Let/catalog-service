@@ -12,6 +12,7 @@ public record ProductCreatedEvent(
     UUID restaurantId,
     String name,
     String category,
+    BigDecimal basePrice,
     Map<String, Object> attributes,
     LocalDateTime startAt,
     LocalDateTime endAt,
@@ -23,6 +24,9 @@ public record ProductCreatedEvent(
         Objects.requireNonNull(restaurantId, "restaurantId는 필수입니다.");
         Objects.requireNonNull(name, "name은 필수입니다.");
         Objects.requireNonNull(category, "category는 필수입니다.");
+        if (basePrice != null && basePrice.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("기본 가격은 0원 이상이어야 합니다.");
+        }
 
         attributes = attributes == null ? Map.of() : Map.copyOf(attributes);
         options = options == null ? List.of() : List.copyOf(options);
