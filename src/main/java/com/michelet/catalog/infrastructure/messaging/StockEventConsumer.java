@@ -29,7 +29,7 @@ public class StockEventConsumer {
         topics = "${catalog.kafka.topic.stock-restored:stock.restored}",
         groupId = "${spring.kafka.consumer.group-id:catalog-service-consumer}"
     )
-    public void consumeStockRestored(StockRestoredEvent event) {
+    public void consumeStockRestoredEvent(StockRestoredEvent event) {
         log.info("stock.restored 이벤트 수신: {}", event);
         productViewCommandService.applyStockRestoredEvent(event);
     }
