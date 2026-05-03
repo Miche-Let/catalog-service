@@ -12,6 +12,7 @@ public record ProductCreatedEvent(
     UUID restaurantId,
     String name,
     String category,
+    BigDecimal basePrice,
     Map<String, Object> attributes,
     LocalDateTime startAt,
     LocalDateTime endAt,

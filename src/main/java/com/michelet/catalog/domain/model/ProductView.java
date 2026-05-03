@@ -35,6 +35,10 @@ public class ProductView {
 
     private String name;
     private String category;
+
+    @Field("base_price")
+    private BigDecimal basePrice;
+
     private Map<String, Object> metadata;
 
     @Field("is_visible")
@@ -44,12 +48,14 @@ public class ProductView {
     private List<OptionView> options;
 
     @Builder
-    private ProductView(UUID productId, UUID restaurantId, String name, String category, Map<String, Object> metadata,
+    private ProductView(UUID productId, UUID restaurantId, String name, String category, BigDecimal basePrice,
+                        Map<String, Object> metadata,
                         boolean isVisible, Display display, List<OptionView> options) {
         this.productId = productId;
         this.restaurantId = restaurantId;
         this.name = name;
         this.category = category;
+        this.basePrice = basePrice;
         this.metadata = metadata;
         this.isVisible = isVisible;
         this.display = display;
@@ -98,7 +104,7 @@ public class ProductView {
     }
 
     /**
-     * 재고 예약(차감) 이벤트를 수신했을 때 호출되어 옵션의 재고를 갱신함
+     * 재고 예약(차감)/복구 이벤트를 수신했을 때 호출되어 옵션의 재고를 갱신함
      */
     public void updateStock(UUID targetOptionId, Integer newTotalQuantity, Integer newCurrentDailyStock) {
         if (this.options == null) {
