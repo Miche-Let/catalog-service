@@ -2,6 +2,7 @@ package com.michelet.catalog.infrastructure.messaging;
 
 import com.michelet.catalog.application.ProductViewCommandService;
 import com.michelet.catalog.infrastructure.messaging.dto.StockReservedEvent;
+import com.michelet.catalog.infrastructure.messaging.dto.StockRestoredEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -21,7 +22,12 @@ public class StockEventConsumer {
         productViewCommandService.applyStockReservedEvent(event);
     }
 
+    @KafkaListener(topics = "stock.restored", groupId = "catalog-service-consumer")
+    public void consumeStockRestored(StockRestoredEvent event) {
+        log.info("stock.restored 이벤트 수신: {}", event);
+        productViewCommandService.applyStockRestoredEvent(event);
+    }
+
     //TODO 향후 추가될 리스너들:
-    // @KafkaListener(topics = "stock.restored", ...)
     // @KafkaListener(topics = "stock.daily-reset", ...)
 }

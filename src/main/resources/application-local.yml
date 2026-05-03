@@ -21,7 +21,7 @@ spring:
                 spring.json.trusted.packages: "com.michelet.*"
                 spring.json.use.type.headers: true
                 # 서로 다른 패키지의 이벤트를 1:1로 매핑
-                spring.json.type.mapping: "com.michelet.inventory.application.dto.StockReservedEvent:com.michelet.catalog.infrastructure.messaging.dto.StockReservedEvent,com.michelet.inventory.application.dto.ProductCreatedEvent:com.michelet.catalog.infrastructure.messaging.dto.ProductCreatedEvent"
+                spring.json.type.mapping: "com.michelet.inventory.application.dto.StockReservedEvent:com.michelet.catalog.infrastructure.messaging.dto.StockReservedEvent,com.michelet.inventory.application.dto.ProductCreatedEvent:com.michelet.catalog.infrastructure.messaging.dto.ProductCreatedEvent,com.michelet.inventory.application.dto.StockRestoredEvent:com.michelet.catalog.infrastructure.messaging.dto.StockRestoredEvent"
 
 eureka:
     client:
