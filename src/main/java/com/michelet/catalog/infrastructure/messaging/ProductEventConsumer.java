@@ -14,7 +14,10 @@ public class ProductEventConsumer {
 
     private final ProductViewCommandService productViewCommandService;
 
-    @KafkaListener(topics = "product.created", groupId = "catalog-service-consumer")
+    @KafkaListener(
+        topics = "${catalog.kafka.topic.product-created:product.created}",
+        groupId = "${spring.kafka.consumer.group-id:catalog-service-consumer}"
+    )
     public void consumeProductCreatedEvent(ProductCreatedEvent event) {
         log.info("product.created 이벤트 수신: {}", event);
         productViewCommandService.createProductView(event);

@@ -15,14 +15,20 @@ public class StockEventConsumer {
 
     private final ProductViewCommandService productViewCommandService;
 
-    @KafkaListener(topics = "stock.reserved", groupId = "catalog-service-consumer")
+    @KafkaListener(
+        topics = "${catalog.kafka.topic.stock-reserved:stock.reserved}",
+        groupId = "${spring.kafka.consumer.group-id:catalog-service-consumer}"
+    )
     public void consumeStockReservedEvent(StockReservedEvent event) {
         log.info("stock.reserved 이벤트 수신: {}", event);
         // KafkaListener Container가 에러를 인지하고 재시도 할 수 있도록
         productViewCommandService.applyStockReservedEvent(event);
     }
 
-    @KafkaListener(topics = "stock.restored", groupId = "catalog-service-consumer")
+    @KafkaListener(
+        topics = "${catalog.kafka.topic.stock-restored:stock.restored}",
+        groupId = "${spring.kafka.consumer.group-id:catalog-service-consumer}"
+    )
     public void consumeStockRestored(StockRestoredEvent event) {
         log.info("stock.restored 이벤트 수신: {}", event);
         productViewCommandService.applyStockRestoredEvent(event);

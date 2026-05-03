@@ -6,3 +6,10 @@ spring:
 
 server:
     port: 19800
+
+catalog:
+    kafka:
+        topic:
+            product-created: "product.created"
+            stock-reserved: "stock.reserved"
+            stock-restored: "stock.restored"
