@@ -42,14 +42,23 @@ public class ProductViewQueryService {
             throw new ProductNotVisibleException();
         }
 
+        // 옵션 리스트 Null 및 Empty 방어
+        if (productView.getOptions() == null || productView.getOptions().isEmpty()) {
+            throw new ProductNotFoundException();
+        }
+
         // 3. 옵션 상세 정보 추출
         ProductView.OptionView option = productView.getOptions().stream()
             .filter(o -> o.getOptionId().equals(optionId))
             .findFirst()
             .orElseThrow(ProductNotFoundException::new);
 
+        // DB 조회 값이 Null일 경우 기본값(0) 처리하여 NPE 차단
+        BigDecimal basePrice = productView.getBasePrice() != null ? productView.getBasePrice() : BigDecimal.ZERO;
+        BigDecimal addPrice = option.getAddPrice() != null ? option.getAddPrice() : BigDecimal.ZERO;
+
         // 4. 총 가격(기본가 + 추가금액) 계산하여 반환
-        BigDecimal totalPrice = productView.getBasePrice().add(option.getAddPrice());
+        BigDecimal totalPrice = basePrice.add(addPrice);
         return new OptionValidationResponse(option.getOptionId(), option.getName(), totalPrice);
     }
 }
