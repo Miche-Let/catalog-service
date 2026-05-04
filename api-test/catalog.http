@@ -18,6 +18,7 @@ Authorization: Bearer {{auth_token}}
 ### 2. [Public] 상품 상세 조회 (단건)
 # inventory.http에서 상품 등록 후 넘어온 shared_product_id 사용
 GET http://{{host}}:{{gatewayPort}}/api/v1/products/{{shared_product_id}}
+#GET http://{{host}}:{{gatewayPort}}/api/v1/products/{{expired_product_id}}
 Accept: application/json
 Authorization: Bearer {{auth_token}}
 
@@ -51,13 +52,14 @@ Authorization: Bearer {{auth_token}}
 > {%
     client.test("카탈로그 스케줄러 동기화: 전시 상태 HIDDEN 변경 확인", function () {
         client.assert(response.status === 200, "조회 실패");
-        if (response.body && response.body.data) {
-            var status = response.body.data.status;
-            client.assert(status === "HIDDEN", "상태가 HIDDEN으로 동기화되지 않았습니다. 현재 상태: " + status);
-            client.log("전시 상태 HIDDEN 변경 동기화 완료");
-        } else {
-            client.log("[에러] 데이터가 없습니다.");
-        }
+
+        // assert를 사용하여 값이 없는 경우 즉시 실패 처리
+        client.assert(response.body && response.body.data, "응답 데이터가 없습니다.");
+
+        var status = response.body.data.status;
+        client.assert(status === "HIDDEN", "상태가 HIDDEN으로 동기화되지 않았습니다. 현재 상태: " + status);
+
+        client.log("전시 상태 HIDDEN 변경 동기화 완료");
     });
 %}
 
@@ -69,14 +71,15 @@ Authorization: Bearer {{auth_token}}
 > {%
     client.test("카탈로그 스케줄러 동기화: 일일 재고 리셋 확인", function () {
         client.assert(response.status === 200, "조회 실패");
-        if (response.body && response.body.data) {
-            var option = response.body.data.options[0];
-            // 이전에 inventory.http 3번(Reserve)에서 3개를 깎았으므로,
-            // 스케줄러가 돌았다면 17개(20-3)보다 많은 초기값(20 또는 100)으로 리셋되어야 함
-            client.assert(option.currentDailyStock > 17, "재고가 리셋되지 않았습니다! 현재: " + option.currentDailyStock);
-            client.log("재고 리셋 동기화 완료: 현재 일일 재고 " + option.currentDailyStock);
-        } else {
-            client.log("[에러] 데이터가 없습니다.");
-        }
+
+        // assert를 사용하여 값이 없는 경우 즉시 실패 처리
+        client.assert(response.body && response.body.data, "응답 데이터가 없습니다.");
+        client.assert(response.body.data.options && response.body.data.options.length > 0, "옵션 데이터가 누락되었습니다.");
+
+        var option = response.body.data.options[0];
+
+        // 느슨한 > 17 검증 대신 정확한 === 20 동치 검증 사용
+        client.assert(option.currentDailyStock === 20, "재고가 20이어야 하는데 현재 " + option.currentDailyStock);
+        client.log("재고 리셋 동기화 완료: 현재 일일 재고 " + option.currentDailyStock);
     });
 %}
