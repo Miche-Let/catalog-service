@@ -2,6 +2,8 @@ package com.michelet.catalog.infrastructure.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
@@ -25,5 +27,18 @@ public class KafkaConfig {
         errorHandler.addNotRetryableExceptions(IllegalArgumentException.class);
 
         return errorHandler;
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
+        ConsumerFactory<String, Object> consumerFactory,
+        DefaultErrorHandler errorHandler //위에서 만든 것 주입
+    ) {
+        ConcurrentKafkaListenerContainerFactory<String, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(consumerFactory);
+
+        factory.setCommonErrorHandler(errorHandler);
+
+        return factory;
     }
 }

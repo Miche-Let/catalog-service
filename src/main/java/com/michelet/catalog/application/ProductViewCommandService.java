@@ -7,9 +7,11 @@ import com.michelet.catalog.domain.repository.ProductViewRepository;
 import com.michelet.catalog.infrastructure.messaging.dto.DailyStockResetEvent;
 import com.michelet.catalog.infrastructure.messaging.dto.ProductCreatedEvent;
 import com.michelet.catalog.infrastructure.messaging.dto.ProductStatusChangedEvent;
+import com.michelet.catalog.infrastructure.messaging.dto.ProductUpdatedEvent;
 import com.michelet.catalog.infrastructure.messaging.dto.StockReservedEvent;
 import com.michelet.catalog.infrastructure.messaging.dto.StockRestoredEvent;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -127,6 +129,27 @@ public class ProductViewCommandService {
         log.info("MongoDB 재고 복구 업데이트 완료: productId={}", productView.getProductId());
     }
 
+    // 상품 업데이트 이벤트 수신 처리
+    public void updateProductView(ProductUpdatedEvent event) {
+        if (event == null) {
+            throw new IllegalArgumentException("이벤트 페이로드가 null입니다.");
+        }
+
+        if (event.productId() == null) {
+            throw new IllegalArgumentException("productId는 null일 수 없습니다.");
+        }
+
+        ProductView view = productViewRepository.findByProductId(event.productId())
+            .orElseThrow(() -> {
+                log.warn("상품 정보 업데이트 동기화 실패 (상품 없음): productId={}", event.productId());
+                return new ProductNotFoundException();
+            });
+
+        view.update(event.name(), event.category(), event.basePrice(), event.attributes());
+        productViewRepository.save(view);
+        log.info("MongoDB 상품 정보 업데이트 동기화 완료: productId={}", event.productId());
+    }
+
     /**
      * 상품 전시 상태 업데이트 이벤트를 처리함
      */
@@ -168,11 +191,23 @@ public class ProductViewCommandService {
             }
 
             List<ProductView> batch = page.getContent();
+            // 성공한 상품만 담을 새로운 리스트(합격자 명단st) 생성
+            List<ProductView> successBatch = new ArrayList<>(batch.size());
+
             for (ProductView product : batch) {
-                product.resetDailyStock();
+                try {
+                    product.resetDailyStock();
+                    successBatch.add(product); // 에러 없이 통과한 상품만 리스트에 추가
+                } catch (IllegalStateException e) {
+                    // 실패한 상품은 로그만 남기고 successBatch에 추가하지 않음 (저장 제외)
+                    log.error("일일 재고 리셋 실패 (데이터 정합성 오류) - 부분 갱신 방지를 위해 저장 제외 처리: productId={}, message={}",
+                        product.getProductId(), e.getMessage());
+                }
             }
-            productViewRepository.saveAll(batch);
-            totalProcessed += batch.size();
+
+            // 무조건 batch를 저장하는 것이 아니라, 검증을 통과한 successBatch만 안전하게 DB에 저장
+            productViewRepository.saveAll(successBatch);
+            totalProcessed += successBatch.size();
 
             pageRequest = pageRequest.next();
         } while (page.hasNext());

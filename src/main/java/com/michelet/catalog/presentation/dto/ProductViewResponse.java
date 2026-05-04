@@ -12,6 +12,7 @@ public record ProductViewResponse(
     String name,
     String category,
     String status,
+    BigDecimal basePrice,
     Map<String, Object> metadata,
     boolean isVisible,
     List<OptionResponse> options
@@ -28,6 +29,7 @@ public record ProductViewResponse(
             productView.getName(),
             productView.getCategory(),
             productView.getStatus(),
+            productView.getBasePrice(),
             productView.getMetadata(),
             productView.isVisible(),
             optionResponses

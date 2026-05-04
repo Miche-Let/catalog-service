@@ -17,6 +17,7 @@ spring:
                 enable.idempotence: true
                 max.in.flight.requests.per.connection: 5
                 retry.backoff.ms: 1000
+                max.block.ms: 3000
         consumer:
             group-id: catalog-service-consumer
             auto-offset-reset: earliest
@@ -29,7 +30,7 @@ spring:
                 spring.json.trusted.packages: "com.michelet.catalog.infrastructure.messaging.dto"
                 spring.json.use.type.headers: true
                 # 서로 다른 패키지의 이벤트를 1:1로 매핑
-                spring.json.type.mapping: "com.michelet.inventory.application.dto.StockReservedEvent:com.michelet.catalog.infrastructure.messaging.dto.StockReservedEvent,com.michelet.inventory.application.dto.ProductCreatedEvent:com.michelet.catalog.infrastructure.messaging.dto.ProductCreatedEvent,com.michelet.inventory.application.dto.StockRestoredEvent:com.michelet.catalog.infrastructure.messaging.dto.StockRestoredEvent,com.michelet.inventory.application.dto.ProductStatusChangedEvent:com.michelet.catalog.infrastructure.messaging.dto.ProductStatusChangedEvent,com.michelet.inventory.application.dto.DailyStockResetEvent:com.michelet.catalog.infrastructure.messaging.dto.DailyStockResetEvent"
+                spring.json.type.mapping: "com.michelet.inventory.application.dto.StockReservedEvent:com.michelet.catalog.infrastructure.messaging.dto.StockReservedEvent,com.michelet.inventory.application.dto.ProductCreatedEvent:com.michelet.catalog.infrastructure.messaging.dto.ProductCreatedEvent,com.michelet.inventory.application.dto.StockRestoredEvent:com.michelet.catalog.infrastructure.messaging.dto.StockRestoredEvent,com.michelet.inventory.application.dto.ProductStatusChangedEvent:com.michelet.catalog.infrastructure.messaging.dto.ProductStatusChangedEvent,com.michelet.inventory.application.dto.DailyStockResetEvent:com.michelet.catalog.infrastructure.messaging.dto.DailyStockResetEvent,com.michelet.inventory.application.dto.ProductUpdatedEvent:com.michelet.catalog.infrastructure.messaging.dto.ProductUpdatedEvent"
 
 server:
     port: 19800
@@ -42,6 +43,7 @@ catalog:
             stock-restored: "stock.restored"
             status-changed: "product.status-changed"
             daily-reset: "stock.daily-reset"
+            product-updated: "product.updated"
 
 internal:
     auth:

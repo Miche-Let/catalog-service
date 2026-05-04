@@ -17,8 +17,10 @@ Authorization: Bearer {{auth_token}}
 
 ### 2. [Public] 상품 상세 조회 (단건)
 # inventory.http에서 상품 등록 후 넘어온 shared_product_id 사용
-GET http://{{host}}:{{gatewayPort}}/api/v1/products/{{shared_product_id}}
+#GET http://{{host}}:{{gatewayPort}}/api/v1/products/{{shared_product_id}}
 #GET http://{{host}}:{{gatewayPort}}/api/v1/products/{{expired_product_id}}
+GET http://{{host}}:{{gatewayPort}}/api/v1/products/{{shared_product_id}}
+#GET http://{{host}}:{{gatewayPort}}/api/v1/products/d57c7ba6-2e24-4739-8ee8-d6fcf3a699f6
 Accept: application/json
 Authorization: Bearer {{auth_token}}
 
@@ -83,3 +85,56 @@ Authorization: Bearer {{auth_token}}
         client.log("재고 리셋 동기화 완료: 현재 일일 재고 " + option.currentDailyStock);
     });
 %}
+
+### 6. [Public] 수정 및 삭제(Soft Delete) 동기화 검증 - (주의: inventory.http에서 11~13번 호출 완료 후 실행)
+# shared_product_id는 inventory.http에서 정보가 수정된 후 삭제(DELETED) 처리됨
+GET http://{{host}}:{{gatewayPort}}/api/v1/products/{{shared_product_id}}
+Accept: application/json
+Authorization: Bearer {{auth_token}}
+
+> {%
+    client.test("카탈로그 동기화: 상품 정보 수정 및 삭제 확인", function () {
+        client.assert(response.status === 200, "조회 실패");
+        client.assert(response.body && response.body.data, "데이터 누락");
+
+        var data = response.body.data;
+
+        // 수정(product.updated) 이벤트 반영 검증
+        client.assert(data.name === "수정된 미슐랭 코스", "이름 수정 동기화 실패. 현재: " + data.name);
+        client.assert(data.category === "EVENT", "카테고리 수정 동기화 실패. 현재: " + data.category);
+        client.assert(data.basePrice === 99000, "가격 수정 동기화 실패. 현재: " + data.basePrice);
+
+        // 삭제(status-changed) 이벤트 반영 검증
+        client.assert(data.status === "DELETED", "상태가 DELETED로 동기화되지 않음. 현재: " + data.status);
+        client.assert(data.isVisible === false, "DELETED 상품은 isVisible이 false여야 함");
+
+        client.log("상품 정보 수정(updated) 및 삭제(status-changed) 카프카 동기화 완벽 성공!");
+    });
+%}
+
+### 7. [Public] 품절(SOLDOUT) 자동 전이 동기화 검증
+# depletion_product_id는 inventory.http 13번에서 재고가 0이 되어 SOLDOUT 처리됨
+GET http://{{host}}:{{gatewayPort}}/api/v1/products/{{depletion_product_id}}
+Accept: application/json
+Authorization: Bearer {{auth_token}}
+
+> {%
+    client.test("카탈로그 동기화: SOLDOUT 상태 전이 확인", function () {
+        client.assert(response.status === 200, "조회 실패");
+        client.assert(response.body && response.body.data, "데이터 누락");
+
+        var data = response.body.data;
+        client.assert(data.options && data.options.length > 0, "옵션 데이터가 누락되었습니다.");
+        var option = data.options[0];
+
+        // 재고 완판 검증
+        client.assert(option.totalQuantity === 0, "총 재고가 0이 아님: " + option.totalQuantity);
+
+        // 도메인 규칙(SOLDOUT 상태 전이) 검증
+        client.assert(data.status === "SOLDOUT", "상태가 SOLDOUT으로 동기화되지 않음. 현재: " + data.status);
+        client.assert(data.isVisible === false, "SOLDOUT 상품은 isVisible이 false여야 함");
+
+        client.log("재고 소진 시 SOLDOUT 자동 전이 및 카프카 동기화 완벽 성공!");
+    });
+%}
+

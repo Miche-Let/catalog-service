@@ -11,6 +11,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -24,6 +25,9 @@ public class ProductView {
 
     @Id
     private String id; // MongoDB의 ObjectId
+
+    @Version // 몽고DB 동시성 충돌 방지 - 낙관락
+    private Long version;
 
     @Indexed(unique = true)
     @Field("product_id")
@@ -111,9 +115,12 @@ public class ProductView {
 
         // 재고 리셋을 위한 setter 대용 메서드
         public void resetDailyStock() {
-            // dailyLimit이 totalQuantity를 초과하지 못하도록 Math.min 적용
+            if (this.totalQuantity == null) {
+                throw new IllegalStateException(
+                    "총 재고(totalQuantity)가 null일 수 없습니다. DB 데이터 정합성 오류입니다: optionId=" + this.optionId);
+            }
             if (this.dailyLimit != null) {
-                this.currentDailyStock = Math.min(this.dailyLimit, this.totalQuantity != null ? this.totalQuantity : 0);
+                this.currentDailyStock = Math.min(this.dailyLimit, this.totalQuantity);
             } else {
                 this.currentDailyStock = this.totalQuantity;
             }
@@ -162,6 +169,22 @@ public class ProductView {
         this.status = status;
         // 상태가 ACTIVE가 아니면 노출 여부(isVisible)도 자동으로 관리
         this.isVisible = "ACTIVE".equals(status);
+    }
+
+    // 상품 부분 업데이트 로직
+    public void update(String name, String category, BigDecimal basePrice, Map<String, Object> metadata) {
+        if (name != null) {
+            this.name = name;
+        }
+        if (category != null) {
+            this.category = category;
+        }
+        if (basePrice != null) {
+            this.basePrice = basePrice;
+        }
+        if (metadata != null) {
+            this.metadata = metadata;
+        }
     }
 
     // 일일 재고 리셋
