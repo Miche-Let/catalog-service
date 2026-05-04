@@ -49,6 +49,7 @@ class ProductViewControllerTest {
             // 1. VIA_DTO 규약: 실제 데이터는 'content' 배열 내부에 존재
             .andExpect(jsonPath("$.content").isArray())
             .andExpect(jsonPath("$.content[0].name").value("테스트 상품"))
+            .andExpect(jsonPath("$.content[0].status").value("ACTIVE"))
             // 2. VIA_DTO 규약: 페이징 메타데이터는 'page' 객체 내부에 응집
             .andExpect(jsonPath("$.page.size").value(20))
             .andExpect(jsonPath("$.page.number").value(0))
@@ -74,6 +75,7 @@ class ProductViewControllerTest {
                 .param("page", "0")
                 .param("size", "50"))
             .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content[0].status").value("ACTIVE"))
             .andExpect(jsonPath("$.page.size").value(50));
 
         then(productViewQueryService).should().getProducts(eq(pageRequest));

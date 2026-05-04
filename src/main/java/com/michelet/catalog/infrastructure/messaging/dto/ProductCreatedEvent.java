@@ -52,6 +52,9 @@ public record ProductCreatedEvent(
             if (totalQuantity < 0 || currentDailyStock < 0 || dailyLimit < 0) {
                 throw new IllegalArgumentException("재고 수량은 0 이상이어야 합니다.");
             }
+            if (currentDailyStock > totalQuantity) {
+                throw new IllegalArgumentException("일일 재고 수량이 총 재고 수량을 초과할 수 없습니다.");
+            }
         }
     }
 }
