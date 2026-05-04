@@ -11,6 +11,7 @@ import com.michelet.catalog.infrastructure.messaging.dto.ProductUpdatedEvent;
 import com.michelet.catalog.infrastructure.messaging.dto.StockReservedEvent;
 import com.michelet.catalog.infrastructure.messaging.dto.StockRestoredEvent;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -190,16 +191,23 @@ public class ProductViewCommandService {
             }
 
             List<ProductView> batch = page.getContent();
+            // 성공한 상품만 담을 새로운 리스트(합격자 명단st) 생성
+            List<ProductView> successBatch = new ArrayList<>(batch.size());
+
             for (ProductView product : batch) {
                 try {
                     product.resetDailyStock();
+                    successBatch.add(product); // 에러 없이 통과한 상품만 리스트에 추가
                 } catch (IllegalStateException e) {
-                    log.error("일일 재고 리셋 실패 (데이터 정합성 오류) - 무시하고 다음 상품 진행: productId={}, message={}",
+                    // 실패한 상품은 로그만 남기고 successBatch에 추가하지 않음 (저장 제외)
+                    log.error("일일 재고 리셋 실패 (데이터 정합성 오류) - 부분 갱신 방지를 위해 저장 제외 처리: productId={}, message={}",
                         product.getProductId(), e.getMessage());
                 }
             }
-            productViewRepository.saveAll(batch);
-            totalProcessed += batch.size();
+
+            // 무조건 batch를 저장하는 것이 아니라, 검증을 통과한 successBatch만 안전하게 DB에 저장
+            productViewRepository.saveAll(successBatch);
+            totalProcessed += successBatch.size();
 
             pageRequest = pageRequest.next();
         } while (page.hasNext());
