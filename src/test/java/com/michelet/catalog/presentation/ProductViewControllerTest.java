@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.michelet.catalog.application.ProductViewQueryService;
 import com.michelet.catalog.presentation.dto.ProductViewResponse;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -34,7 +35,15 @@ class ProductViewControllerTest {
     void getProducts_PageSerialization_ViaDto() throws Exception {
         // given
         ProductViewResponse response = new ProductViewResponse(
-            UUID.randomUUID(), UUID.randomUUID(), "테스트 상품", "카테고리", "ACTIVE", null, true, List.of()
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            "테스트 상품",
+            "카테고리",
+            "ACTIVE",
+            BigDecimal.valueOf(15000),
+            null,
+            true,
+            List.of()
         );
         PageRequest pageRequest = PageRequest.of(0, 20);
         // 1개의 요소를 가진 페이지 Mock 응답 생성
@@ -50,6 +59,7 @@ class ProductViewControllerTest {
             .andExpect(jsonPath("$.content").isArray())
             .andExpect(jsonPath("$.content[0].name").value("테스트 상품"))
             .andExpect(jsonPath("$.content[0].status").value("ACTIVE"))
+            .andExpect(jsonPath("$.content[0].basePrice").value(15000))
             // 2. VIA_DTO 규약: 페이징 메타데이터는 'page' 객체 내부에 응집
             .andExpect(jsonPath("$.page.size").value(20))
             .andExpect(jsonPath("$.page.number").value(0))
@@ -64,7 +74,15 @@ class ProductViewControllerTest {
     void getProducts_MaxPageSizeAccepted() throws Exception {
         // given
         ProductViewResponse response = new ProductViewResponse(
-            UUID.randomUUID(), UUID.randomUUID(), "테스트 상품", "카테고리", "ACTIVE", null, true, List.of()
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            "테스트 상품",
+            "카테고리",
+            "ACTIVE",
+            BigDecimal.valueOf(15000),
+            null,
+            true,
+            List.of()
         );
         PageRequest pageRequest = PageRequest.of(0, 50);
         given(productViewQueryService.getProducts(eq(pageRequest)))
