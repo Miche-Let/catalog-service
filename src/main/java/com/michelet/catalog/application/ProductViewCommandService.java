@@ -134,6 +134,10 @@ public class ProductViewCommandService {
             throw new IllegalArgumentException("이벤트 페이로드가 null입니다.");
         }
 
+        if (event.productId() == null) {
+            throw new IllegalArgumentException("productId는 null일 수 없습니다.");
+        }
+
         ProductView view = productViewRepository.findByProductId(event.productId())
             .orElseThrow(() -> {
                 log.warn("상품 정보 업데이트 동기화 실패 (상품 없음): productId={}", event.productId());
