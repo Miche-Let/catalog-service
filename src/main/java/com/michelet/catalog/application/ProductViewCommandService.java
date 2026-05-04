@@ -191,7 +191,12 @@ public class ProductViewCommandService {
 
             List<ProductView> batch = page.getContent();
             for (ProductView product : batch) {
-                product.resetDailyStock();
+                try {
+                    product.resetDailyStock();
+                } catch (IllegalStateException e) {
+                    log.error("일일 재고 리셋 실패 (데이터 정합성 오류) - 무시하고 다음 상품 진행: productId={}, message={}",
+                        product.getProductId(), e.getMessage());
+                }
             }
             productViewRepository.saveAll(batch);
             totalProcessed += batch.size();
