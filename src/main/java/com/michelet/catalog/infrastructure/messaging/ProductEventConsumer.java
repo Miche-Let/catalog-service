@@ -4,6 +4,7 @@ import com.michelet.catalog.application.ProductViewCommandService;
 import com.michelet.catalog.infrastructure.messaging.dto.DailyStockResetEvent;
 import com.michelet.catalog.infrastructure.messaging.dto.ProductCreatedEvent;
 import com.michelet.catalog.infrastructure.messaging.dto.ProductStatusChangedEvent;
+import com.michelet.catalog.infrastructure.messaging.dto.ProductUpdatedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -23,6 +24,16 @@ public class ProductEventConsumer {
     public void consumeProductCreatedEvent(ProductCreatedEvent event) {
         log.info("product.created 이벤트 수신: {}", event);
         productViewCommandService.createProductView(event);
+    }
+
+    // 상품 수정 리스너
+    @KafkaListener(
+        topics = "${catalog.kafka.topic.product-updated:product.updated}",
+        groupId = "${spring.kafka.consumer.group-id:catalog-service-consumer}"
+    )
+    public void consumeProductUpdatedEvent(ProductUpdatedEvent event) {
+        log.info("product.updated 이벤트 수신: {}", event);
+        productViewCommandService.updateProductView(event);
     }
 
     // 상품 상태 변경 리스너

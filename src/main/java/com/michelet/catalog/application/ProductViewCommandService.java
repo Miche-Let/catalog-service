@@ -7,6 +7,7 @@ import com.michelet.catalog.domain.repository.ProductViewRepository;
 import com.michelet.catalog.infrastructure.messaging.dto.DailyStockResetEvent;
 import com.michelet.catalog.infrastructure.messaging.dto.ProductCreatedEvent;
 import com.michelet.catalog.infrastructure.messaging.dto.ProductStatusChangedEvent;
+import com.michelet.catalog.infrastructure.messaging.dto.ProductUpdatedEvent;
 import com.michelet.catalog.infrastructure.messaging.dto.StockReservedEvent;
 import com.michelet.catalog.infrastructure.messaging.dto.StockRestoredEvent;
 import java.time.LocalDateTime;
@@ -125,6 +126,23 @@ public class ProductViewCommandService {
         // 3. MongoDB에 저장 (덮어쓰기)
         productViewRepository.save(productView);
         log.info("MongoDB 재고 복구 업데이트 완료: productId={}", productView.getProductId());
+    }
+
+    // 상품 업데이트 이벤트 수신 처리
+    public void updateProductView(ProductUpdatedEvent event) {
+        if (event == null) {
+            throw new IllegalArgumentException("이벤트 페이로드가 null입니다.");
+        }
+
+        ProductView view = productViewRepository.findByProductId(event.productId())
+            .orElseThrow(() -> {
+                log.warn("상품 정보 업데이트 동기화 실패 (상품 없음): productId={}", event.productId());
+                return new ProductNotFoundException();
+            });
+
+        view.update(event.name(), event.category(), event.basePrice(), event.attributes());
+        productViewRepository.save(view);
+        log.info("MongoDB 상품 정보 업데이트 동기화 완료: productId={}", event.productId());
     }
 
     /**
