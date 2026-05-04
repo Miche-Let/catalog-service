@@ -35,6 +35,7 @@ public class ProductView {
 
     private String name;
     private String category;
+    private String status;
 
     @Field("base_price")
     private BigDecimal basePrice;
@@ -48,13 +49,15 @@ public class ProductView {
     private List<OptionView> options;
 
     @Builder
-    private ProductView(UUID productId, UUID restaurantId, String name, String category, BigDecimal basePrice,
+    private ProductView(UUID productId, UUID restaurantId, String name, String category, String status,
+                        BigDecimal basePrice,
                         Map<String, Object> metadata,
                         boolean isVisible, Display display, List<OptionView> options) {
         this.productId = productId;
         this.restaurantId = restaurantId;
         this.name = name;
         this.category = category;
+        this.status = status;
         this.basePrice = basePrice;
         this.metadata = metadata;
         this.isVisible = isVisible;
@@ -93,13 +96,43 @@ public class ProductView {
         @Field("current_daily_stock")
         private Integer currentDailyStock;
 
+        @Field("daily_limit")
+        private Integer dailyLimit;
+
         public OptionView(UUID optionId, String name, BigDecimal addPrice, Integer totalQuantity,
-                          Integer currentDailyStock) {
+                          Integer currentDailyStock, Integer dailyLimit) {
             this.optionId = optionId;
             this.name = name;
             this.addPrice = addPrice;
             this.totalQuantity = totalQuantity;
             this.currentDailyStock = currentDailyStock;
+            this.dailyLimit = dailyLimit;
+        }
+
+        // 재고 리셋을 위한 setter 대용 메서드
+        public void resetDailyStock() {
+            // dailyLimit이 totalQuantity를 초과하지 못하도록 Math.min 적용
+            if (this.dailyLimit != null) {
+                this.currentDailyStock = Math.min(this.dailyLimit, this.totalQuantity != null ? this.totalQuantity : 0);
+            } else {
+                this.currentDailyStock = this.totalQuantity;
+            }
+        }
+
+        // 재고 업데이트를 위한 메서드
+        public void updateStock(Integer total, Integer current) {
+            if (total == null || current == null) {
+                throw new IllegalArgumentException("재고 수량은 null일 수 없습니다.");
+            }
+            if (total < 0 || current < 0) {
+                throw new IllegalArgumentException("재고 수량은 0 이상이어야 합니다.");
+            }
+            if (current > total) {
+                throw new IllegalArgumentException("일일 재고가 총 재고를 초과할 수 없습니다.");
+            }
+
+            this.totalQuantity = total;
+            this.currentDailyStock = current;
         }
     }
 
@@ -113,9 +146,29 @@ public class ProductView {
 
         for (OptionView option : this.options) {
             if (option != null && Objects.equals(option.getOptionId(), targetOptionId)) {
-                option.totalQuantity = newTotalQuantity;
-                option.currentDailyStock = newCurrentDailyStock;
+                option.updateStock(newTotalQuantity, newCurrentDailyStock);
                 break;
+            }
+        }
+    }
+
+    // 전시 상태 변경
+    public void updateStatus(String status) {
+        if (status == null || (!"ACTIVE".equals(status) && !"HIDDEN".equals(status) && !"DELETED".equals(status)
+            && !"SOLDOUT".equals(status))) {
+            throw new IllegalArgumentException("유효하지 않은 상태 값입니다: " + status);
+        }
+
+        this.status = status;
+        // 상태가 ACTIVE가 아니면 노출 여부(isVisible)도 자동으로 관리
+        this.isVisible = "ACTIVE".equals(status);
+    }
+
+    // 일일 재고 리셋
+    public void resetDailyStock() {
+        if (this.options != null) {
+            for (OptionView option : this.options) {
+                option.resetDailyStock();
             }
         }
     }

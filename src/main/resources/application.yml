@@ -3,6 +3,33 @@ spring:
         name: catalog-service
     profiles:
         active: local
+    data:
+        mongodb:
+            uuid-representation: standard
+    kafka:
+        # 에러 시 DLT로 객체를 전송하기 위해 Producer 설정 추가
+        producer:
+            key-serializer: org.apache.kafka.common.serialization.StringSerializer
+            value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+            acks: all
+            retries: 3
+            properties:
+                enable.idempotence: true
+                max.in.flight.requests.per.connection: 5
+                retry.backoff.ms: 1000
+        consumer:
+            group-id: catalog-service-consumer
+            auto-offset-reset: earliest
+            key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+            # 에러 시 무한 루프 방지를 위한 ErrorHandlingDeserializer 래퍼 적용
+            value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+            properties:
+                # 실제 역직렬화를 수행할 델리게이트 클래스 지정
+                spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+                spring.json.trusted.packages: "com.michelet.catalog.infrastructure.messaging.dto"
+                spring.json.use.type.headers: true
+                # 서로 다른 패키지의 이벤트를 1:1로 매핑
+                spring.json.type.mapping: "com.michelet.inventory.application.dto.StockReservedEvent:com.michelet.catalog.infrastructure.messaging.dto.StockReservedEvent,com.michelet.inventory.application.dto.ProductCreatedEvent:com.michelet.catalog.infrastructure.messaging.dto.ProductCreatedEvent,com.michelet.inventory.application.dto.StockRestoredEvent:com.michelet.catalog.infrastructure.messaging.dto.StockRestoredEvent,com.michelet.inventory.application.dto.ProductStatusChangedEvent:com.michelet.catalog.infrastructure.messaging.dto.ProductStatusChangedEvent,com.michelet.inventory.application.dto.DailyStockResetEvent:com.michelet.catalog.infrastructure.messaging.dto.DailyStockResetEvent"
 
 server:
     port: 19800
@@ -13,3 +40,11 @@ catalog:
             product-created: "product.created"
             stock-reserved: "stock.reserved"
             stock-restored: "stock.restored"
+            status-changed: "product.status-changed"
+            daily-reset: "stock.daily-reset"
+
+internal:
+    auth:
+        secret: ${INTERNAL_AUTH_SECRET}
+jwt:
+    secret: ${JWT_SECRET}

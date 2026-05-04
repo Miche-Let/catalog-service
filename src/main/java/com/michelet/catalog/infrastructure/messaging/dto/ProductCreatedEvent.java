@@ -37,7 +37,8 @@ public record ProductCreatedEvent(
         String name,
         BigDecimal addPrice,
         Integer totalQuantity,
-        Integer currentDailyStock
+        Integer currentDailyStock,
+        Integer dailyLimit
     ) {
         // 컴팩트 생성자 추가 - 옵션 필수 값 및 재고 수량 0 이상 검증
         public OptionEventDto {
@@ -46,9 +47,13 @@ public record ProductCreatedEvent(
             Objects.requireNonNull(addPrice, "addPrice는 필수입니다.");
             Objects.requireNonNull(totalQuantity, "totalQuantity는 필수입니다.");
             Objects.requireNonNull(currentDailyStock, "currentDailyStock는 필수입니다.");
+            Objects.requireNonNull(dailyLimit, "dailyLimit는 필수입니다.");
 
-            if (totalQuantity < 0 || currentDailyStock < 0) {
+            if (totalQuantity < 0 || currentDailyStock < 0 || dailyLimit < 0) {
                 throw new IllegalArgumentException("재고 수량은 0 이상이어야 합니다.");
+            }
+            if (currentDailyStock > totalQuantity) {
+                throw new IllegalArgumentException("일일 재고 수량이 총 재고 수량을 초과할 수 없습니다.");
             }
         }
     }

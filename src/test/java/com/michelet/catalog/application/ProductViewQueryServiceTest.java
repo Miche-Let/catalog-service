@@ -36,7 +36,8 @@ class ProductViewQueryServiceTest {
     void getProducts_Success() {
         // given
         UUID productId = UUID.randomUUID();
-        ProductView.OptionView option = new ProductView.OptionView(UUID.randomUUID(), "기본", BigDecimal.ZERO, 100, 20);
+        ProductView.OptionView option = new ProductView.OptionView(UUID.randomUUID(), "기본", BigDecimal.ZERO, 100, 20,
+            20);
         ProductView productView = ProductView.builder()
             .productId(productId)
             .name("밀키트 A")
@@ -62,7 +63,8 @@ class ProductViewQueryServiceTest {
     void getProduct_Success() {
         // given
         UUID productId = UUID.randomUUID();
-        ProductView.OptionView option = new ProductView.OptionView(UUID.randomUUID(), "기본", BigDecimal.ZERO, 100, 20);
+        ProductView.OptionView option = new ProductView.OptionView(UUID.randomUUID(), "기본", BigDecimal.ZERO, 100, 20,
+            20);
         ProductView productView = ProductView.builder()
             .productId(productId)
             .name("단건 상품")

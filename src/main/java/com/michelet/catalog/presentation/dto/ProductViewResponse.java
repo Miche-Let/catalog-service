@@ -11,6 +11,7 @@ public record ProductViewResponse(
     UUID restaurantId,
     String name,
     String category,
+    String status,
     Map<String, Object> metadata,
     boolean isVisible,
     List<OptionResponse> options
@@ -26,6 +27,7 @@ public record ProductViewResponse(
             productView.getRestaurantId(),
             productView.getName(),
             productView.getCategory(),
+            productView.getStatus(),
             productView.getMetadata(),
             productView.isVisible(),
             optionResponses
@@ -37,7 +39,8 @@ public record ProductViewResponse(
         String name,
         BigDecimal addPrice,
         Integer totalQuantity,
-        Integer currentDailyStock
+        Integer currentDailyStock,
+        Integer dailyLimit
     ) {
         public static OptionResponse from(ProductView.OptionView optionView) {
             return new OptionResponse(
@@ -45,7 +48,8 @@ public record ProductViewResponse(
                 optionView.getName(),
                 optionView.getAddPrice(),
                 optionView.getTotalQuantity(),
-                optionView.getCurrentDailyStock()
+                optionView.getCurrentDailyStock(),
+                optionView.getDailyLimit()
             );
         }
     }
