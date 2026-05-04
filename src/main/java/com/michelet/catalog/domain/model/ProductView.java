@@ -164,6 +164,22 @@ public class ProductView {
         this.isVisible = "ACTIVE".equals(status);
     }
 
+    // 상품 부분 업데이트 로직
+    public void update(String name, String category, BigDecimal basePrice, Map<String, Object> metadata) {
+        if (name != null) {
+            this.name = name;
+        }
+        if (category != null) {
+            this.category = category;
+        }
+        if (basePrice != null) {
+            this.basePrice = basePrice;
+        }
+        if (metadata != null) {
+            this.metadata = metadata;
+        }
+    }
+
     // 일일 재고 리셋
     public void resetDailyStock() {
         if (this.options != null) {
