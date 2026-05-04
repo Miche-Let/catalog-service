@@ -124,6 +124,7 @@ Authorization: Bearer {{auth_token}}
         client.assert(response.body && response.body.data, "데이터 누락");
 
         var data = response.body.data;
+        client.assert(data.options && data.options.length > 0, "옵션 데이터가 누락되었습니다.");
         var option = data.options[0];
 
         // 재고 완판 검증
