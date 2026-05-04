@@ -16,10 +16,10 @@ spring:
         hibernate:
             ddl-auto: create-drop
 
-#    # 만약 MongoDB 관련 에러가 발생한다면 아래 설정을 추가
-#    # data:
-#    #   mongodb:
-#    #     uri: mongodb://localhost:27017/test
+    # 만약 MongoDB 관련 에러가 발생한다면 아래 설정을 추가
+    # data:
+    #   mongodb:
+    #     uri: mongodb://localhost:27017/test
 
 catalog:
     kafka:
@@ -29,3 +29,9 @@ catalog:
             stock-restored: "stock.restored"
             status-changed: "product.status-changed"
             daily-reset: "stock.daily-reset"
+
+internal:
+    auth:
+        secret: ${INTERNAL_AUTH_SECRET:michelet-internal-auth-secret-key-a8K2mQ9xLp4Vt7Rz1Nc}
+jwt:
+    secret: ${JWT_SECRET:michelet-secret-key-for-authentication}
