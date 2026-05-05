@@ -2,6 +2,20 @@
 @host = localhost
 @gatewayPort = 19000
 @catalogPort = 19800
+@orderPort = 19700
+
+### -1. [Test] 내부 API용 테스트 JWT 토큰 발급 (로컬 전용)
+GET http://{{host}}:{{orderPort}}/test/internal-token?audience=catalog-service
+
+> {%
+    client.test("내부 토큰 획득 성공", function () {
+        client.assert(response.status === 200, "내부 토큰 발급 실패");
+        client.global.set("internal_token", response.body);
+        client.log("=======================================");
+        client.log("[토큰 획득] X-Internal-Token 저장 완료");
+        client.log("=======================================");
+    });
+%}
 
 ### 1. [Public] 상품 전체 조회 (목록)
 GET http://{{host}}:{{gatewayPort}}/api/v1/products?page=0&size=10
@@ -19,10 +33,10 @@ Authorization: Bearer {{auth_token}}
 # inventory.http에서 상품 등록 후 넘어온 shared_product_id 사용
 #GET http://{{host}}:{{gatewayPort}}/api/v1/products/{{shared_product_id}}
 #GET http://{{host}}:{{gatewayPort}}/api/v1/products/{{expired_product_id}}
-GET http://{{host}}:{{gatewayPort}}/api/v1/products/{{shared_product_id}}
+GET http://{{host}}:{{gatewayPort}}/api/v1/products/{{product_id}}
 #GET http://{{host}}:{{gatewayPort}}/api/v1/products/d57c7ba6-2e24-4739-8ee8-d6fcf3a699f6
 Accept: application/json
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{owner_token}}
 
 > {%
     client.test("상세 조회 및 카프카 데이터 동기화 확인", function () {
@@ -32,9 +46,9 @@ Authorization: Bearer {{auth_token}}
 %}
 
 ### 3. [Internal] 옵션 검증 단건 유효성 및 가격 검증 API
-GET http://{{host}}:{{catalogPort}}/internal/options/{{shared_option_id}}/validate
+GET http://{{host}}:{{catalogPort}}/internal/options/{{option_id_1}}/validate
 Accept: application/json
-X-User-Role: SYSTEM
+X-Internal-Token: {{internal_token}}
 
 > {%
     client.test("옵션 검증 및 가격 합산 로직 확인", function () {
