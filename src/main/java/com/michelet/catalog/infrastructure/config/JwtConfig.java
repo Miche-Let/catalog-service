@@ -15,10 +15,10 @@ public class JwtConfig {
 
     @PostConstruct
     public void validateSecret() {
-        if (jwtSecret.isEmpty()) {
+        if (jwtSecret.isBlank()) {
             throw new IllegalStateException("보안 오류: JWT_SECRET이 설정되지 않았습니다.");
         }
-        if (internalSecret.isEmpty()) {
+        if (internalSecret.isBlank()) {
             throw new IllegalStateException("보안 오류: INTERNAL_AUTH_SECRET이 설정되지 않았습니다.");
         }
     }
