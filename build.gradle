@@ -48,11 +48,14 @@ dependencies {
     testAnnotationProcessor 'org.projectlombok:lombok'
 
     implementation 'com.github.Miche-Let:common:dev-SNAPSHOT'
-    implementation 'com.github.Miche-Let:common-auth-webmvc:0.1.3'
+    implementation 'com.github.Miche-Let:common-auth-webmvc:0.1.5'
+    implementation 'com.github.Miche-Let:common-auth-feign:0.1.2'
 
     // MongoDB 테스트를 위한 Testcontainers 추가
     testImplementation 'org.testcontainers:mongodb'
     testImplementation 'org.testcontainers:junit-jupiter'
+
+    implementation 'org.springframework.boot:spring-boot-starter-security'
 }
 
 dependencyManagement {
