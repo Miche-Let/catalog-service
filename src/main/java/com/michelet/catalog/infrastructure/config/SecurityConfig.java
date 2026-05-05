@@ -12,6 +12,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.util.AntPathMatcher;
 
 @Configuration
 @EnableWebSecurity
@@ -23,11 +24,14 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, InternalTokenProvider tokenProvider) throws Exception {
 
-        // common 모듈의 필터를 가져오되, 일반 API(/api/v1/**)는 검사하지 않도록 예외 처리만 추가
         InternalAuthFilter cleanInternalFilter = new InternalAuthFilter(tokenProvider, applicationName) {
+            private final AntPathMatcher pathMatcher = new AntPathMatcher();
+
             @Override
             protected boolean shouldNotFilter(HttpServletRequest request) {
-                return !request.getRequestURI().startsWith("/internal/");
+                // request.getServletPath()를 사용하면 Context-Path가 있어도 이를 제외한 순수 경로만 가져옴
+                String path = request.getServletPath();
+                return !pathMatcher.match("/internal/**", path);
             }
         };
 
