@@ -32,8 +32,8 @@ class ProductViewControllerTest {
     private ProductViewQueryService productViewQueryService;
 
     @Test
-    @DisplayName("성공: 카탈로그 목록 조회 시 VIA_DTO 페이지 직렬화 규약을 준수하여 응답한다.")
-    void getProducts_PageSerialization_ViaDto() throws Exception {
+    @DisplayName("성공: [고객용] 카탈로그 목록 조회 시 제대로 응답한다.")
+    void getActiveProducts_PageSerialization_ViaDto() throws Exception {
         // given
         ProductViewResponse response = new ProductViewResponse(
             UUID.randomUUID(),
@@ -48,7 +48,7 @@ class ProductViewControllerTest {
         );
         PageRequest pageRequest = PageRequest.of(0, 20);
         // 1개의 요소를 가진 페이지 Mock 응답 생성
-        given(productViewQueryService.getProducts(eq(pageRequest)))
+        given(productViewQueryService.getActiveProducts(eq(pageRequest)))
             .willReturn(new PageImpl<>(List.of(response), pageRequest, 1));
 
         // when & then
@@ -67,12 +67,12 @@ class ProductViewControllerTest {
             .andExpect(jsonPath("$.page.totalElements").value(1))
             .andExpect(jsonPath("$.page.totalPages").value(1));
 
-        then(productViewQueryService).should().getProducts(eq(pageRequest));
+        then(productViewQueryService).should().getActiveProducts(eq(pageRequest));
     }
 
     @Test
-    @DisplayName("성공: size=50(최대 허용값) 요청을 정상 처리한다.")
-    void getProducts_MaxPageSizeAccepted() throws Exception {
+    @DisplayName("성공: [고객용] size=50(최대 허용값) 요청을 정상 처리한다.")
+    void getActiveProducts_MaxPageSizeAccepted() throws Exception {
         // given
         ProductViewResponse response = new ProductViewResponse(
             UUID.randomUUID(),
@@ -86,7 +86,7 @@ class ProductViewControllerTest {
             List.of()
         );
         PageRequest pageRequest = PageRequest.of(0, 50);
-        given(productViewQueryService.getProducts(eq(pageRequest)))
+        given(productViewQueryService.getActiveProducts(eq(pageRequest)))
             .willReturn(new PageImpl<>(List.of(response), pageRequest, 1));
 
         // when & then
@@ -97,6 +97,38 @@ class ProductViewControllerTest {
             .andExpect(jsonPath("$.content[0].status").value("ACTIVE"))
             .andExpect(jsonPath("$.page.size").value(50));
 
-        then(productViewQueryService).should().getProducts(eq(pageRequest));
+        then(productViewQueryService).should().getActiveProducts(eq(pageRequest));
+    }
+
+    @Test
+    @DisplayName("성공: [점주용] 전체 카탈로그 목록 조회 요청을 정상 처리한다.")
+    void getAllProducts_Success() throws Exception {
+        // given
+        ProductViewResponse response = new ProductViewResponse(
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            "숨겨진 테스트 상품",
+            "카테고리",
+            "HIDDEN",
+            BigDecimal.valueOf(15000),
+            null,
+            false,
+            List.of()
+        );
+        PageRequest pageRequest = PageRequest.of(0, 20);
+
+        given(productViewQueryService.getAllProducts(eq(pageRequest)))
+            .willReturn(new PageImpl<>(List.of(response), pageRequest, 1));
+
+        mockMvc.perform(get("/api/v1/products/all")
+                .param("page", "0")
+                .param("size", "20"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content").isArray())
+            .andExpect(jsonPath("$.content[0].name").value("숨겨진 테스트 상품"))
+            .andExpect(jsonPath("$.content[0].status").value("HIDDEN"))
+            .andExpect(jsonPath("$.page.size").value(20));
+
+        then(productViewQueryService).should().getAllProducts(eq(pageRequest));
     }
 }
