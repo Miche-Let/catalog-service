@@ -156,3 +156,12 @@ Authorization: Bearer {{auth_token}}
 GET http://{{host}}:{{gatewayPort}}/api/v1/products/all?page=0&size=10
 Accept: application/json
 Authorization: Bearer {{owner_token}}
+
+> {%
+    client.test("점주용 전체 상품 조회 성공", function () {
+        client.assert(response.status === 200, "조회 실패");
+        client.assert(response.body.content !== undefined, "데이터(content)가 없습니다.");
+        client.assert(response.body.page !== undefined, "페이징(page) 메타데이터가 없습니다.");
+        client.log("점주용 전체 상품 조회 완료!");
+    });
+%}

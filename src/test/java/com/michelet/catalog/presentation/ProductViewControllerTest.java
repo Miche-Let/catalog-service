@@ -125,6 +125,36 @@ class ProductViewControllerTest {
     }
 
     @Test
+    @DisplayName("성공: [관리자용] 올바른 권한(MASTER)이 있을 경우 전체 카탈로그 목록 조회 요청을 정상 처리한다.")
+    void getAllProducts_Master_Success() throws Exception {
+        // given
+        UserContext mockContext = mock(UserContext.class);
+        given(mockContext.isAuthenticated()).willReturn(true);
+        // OWNER 권한이 없더라도 MASTER 권한이 있으면 통과됨을 검증
+        given(mockContext.hasRole(UserRole.OWNER)).willReturn(false);
+        given(mockContext.hasRole(UserRole.MASTER)).willReturn(true);
+        UserContextHolder.set(mockContext);
+
+        ProductViewResponse response = new ProductViewResponse(
+            UUID.randomUUID(), UUID.randomUUID(), "마스터용 숨겨진 상품", "카테고리",
+            "HIDDEN", BigDecimal.valueOf(15000), null, false, List.of()
+        );
+        PageRequest pageRequest = PageRequest.of(0, 20);
+
+        given(productViewQueryService.getAllProducts(eq(pageRequest)))
+            .willReturn(new PageImpl<>(List.of(response), pageRequest, 1));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/products/all")
+                .param("page", "0")
+                .param("size", "20"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content[0].status").value("HIDDEN"));
+
+        then(productViewQueryService).should().getAllProducts(eq(pageRequest));
+    }
+
+    @Test
     @DisplayName("실패: 인증 정보가 없는 상태로 전체 목록 조회 시 401 예외 발생")
     void getAllProducts_Unauthenticated_Returns401() throws Exception {
         // given: UserContextHolder가 빈 상태 (미인증)
@@ -142,6 +172,9 @@ class ProductViewControllerTest {
                     ((org.springframework.web.server.ResponseStatusException) ex).getStatusCode().value()
                 ).isEqualTo(401); // 401 UNAUTHORIZED 검증
             });
+
+        // 예외 발생으로 인해 실제 비즈니스 로직(Service)이 절대 호출되지 않아야 함을 검증
+        then(productViewQueryService).shouldHaveNoInteractions();
     }
 
     @Test
@@ -166,5 +199,8 @@ class ProductViewControllerTest {
                     ((org.springframework.web.server.ResponseStatusException) ex).getStatusCode().value()
                 ).isEqualTo(403); // 403 FORBIDDEN 검증
             });
+
+        // 예외 발생으로 인해 실제 비즈니스 로직(Service)이 절대 호출되지 않아야 함을 검증
+        then(productViewQueryService).shouldHaveNoInteractions();
     }
 }
