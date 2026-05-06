@@ -152,3 +152,25 @@ Authorization: Bearer {{auth_token}}
     });
 %}
 
+### 8. 상품 전체 조회 (점주용 - 모든 상태 포함) <- 비활성 상품 포함한 상태로 테스트할 것
+GET http://{{host}}:{{gatewayPort}}/api/v1/products/all?page=0&size=10
+Accept: application/json
+Authorization: Bearer {{owner_token}}
+
+> {%
+    client.test("점주용 전체 상품 조회 성공", function () {
+        client.assert(response.status === 200, "조회 실패");
+        client.assert(response.body.content !== undefined, "데이터(content)가 없습니다.");
+        client.assert(response.body.page !== undefined, "페이징(page) 메타데이터가 없습니다.");
+
+        // 비활성 상태의 상품이 content 내에 실제로 포함되는지 검증
+        client.assert(
+            response.body.content.some(function (item) {
+                return item.status === "HIDDEN" || item.status === "SOLDOUT" || item.status === "DELETED" || item.isVisible === false;
+            }),
+            "점주용 전체 조회에는 비활성 상태의 상품이 최소 1개 이상 포함되어야 합니다."
+        );
+
+        client.log("점주용 전체 상품 조회 검증 완료!");
+    });
+%}
