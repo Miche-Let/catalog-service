@@ -19,7 +19,14 @@ public class ProductViewQueryService {
 
     private final ProductViewRepository productViewRepository;
 
-    public Page<ProductViewResponse> getProducts(Pageable pageable) {
+    // 고객용 - 노출 중인 상품만 조회
+    public Page<ProductViewResponse> getActiveProducts(Pageable pageable) {
+        return productViewRepository.findByIsVisibleTrue(pageable)
+            .map(ProductViewResponse::from);
+    }
+
+    // 점주/관리자용 - 상태 상관없이 전체 상품 조회
+    public Page<ProductViewResponse> getAllProducts(Pageable pageable) {
         return productViewRepository.findAll(pageable)
             .map(ProductViewResponse::from);
     }
