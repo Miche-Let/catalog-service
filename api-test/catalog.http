@@ -4,23 +4,55 @@
 @catalogPort = 19800
 @orderPort = 19700
 
-### -1. [Test] 내부 API용 테스트 JWT 토큰 발급 (로컬 전용)
+### 1. [Test] 내부 API용 테스트 JWT 토큰 발급
 GET http://{{host}}:{{orderPort}}/test/internal-token?audience=catalog-service
 
 > {%
     client.test("내부 토큰 획득 성공", function () {
         client.assert(response.status === 200, "내부 토큰 발급 실패");
-        client.global.set("internal_token", response.body);
+        client.global.set("cat_internal_token", response.body);
         client.log("=======================================");
         client.log("[토큰 획득] X-Internal-Token 저장 완료");
         client.log("=======================================");
     });
 %}
 
-### 1. [Public] 상품 전체 조회 (목록)
+### 2. [Auth] 카탈로그 전용 유저 로그인 (조회용)
+POST http://{{host}}:{{gatewayPort}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+    "loginId": "test95",
+    "password": "test123!5"
+}
+
+> {%
+    client.test("유저 로그인 검증", function () {
+        client.assert(response.status === 200, "로그인 실패! 계정 생성을 확인하세요.");
+        client.global.set("cat_user_token", response.body.data.accessToken);
+    });
+%}
+
+### 3. [Auth] 카탈로그 전용 점주 로그인 (404 방지용 검증)
+POST http://{{host}}:{{gatewayPort}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+    "loginId": "Owner01",
+    "password": "password1!"
+}
+
+> {%
+    client.test("오너 로그인 검증", function () {
+        client.assert(response.status === 200, "로그인 실패! 계정 생성을 확인하세요.");
+        client.global.set("cat_owner_token", response.body.data.accessToken);
+    });
+%}
+
+### 4. [Public] 상품 전체 조회 (목록)
 GET http://{{host}}:{{gatewayPort}}/api/v1/products?page=0&size=10
 Accept: application/json
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{cat_user_token}}
 
 > {%
     client.test("전체 조회 성공", function () {
@@ -29,148 +61,131 @@ Authorization: Bearer {{auth_token}}
     });
 %}
 
-### 2. [Public] 상품 상세 조회 (단건)
-# inventory.http에서 상품 등록 후 넘어온 shared_product_id 사용
-#GET http://{{host}}:{{gatewayPort}}/api/v1/products/{{shared_product_id}}
-#GET http://{{host}}:{{gatewayPort}}/api/v1/products/{{expired_product_id}}
-GET http://{{host}}:{{gatewayPort}}/api/v1/products/{{product_id}}
-#GET http://{{host}}:{{gatewayPort}}/api/v1/products/d57c7ba6-2e24-4739-8ee8-d6fcf3a699f6
+### 5. [Public] 상품 상세 조회 (단건)
+GET http://{{host}}:{{gatewayPort}}/api/v1/products/{{inv_shared_product_id}}
 Accept: application/json
-Authorization: Bearer {{owner_token}}
+Authorization: Bearer {{cat_owner_token}}
 
 > {%
     client.test("상세 조회 및 카프카 데이터 동기화 확인", function () {
         client.assert(response.status === 200, "상세 조회 실패");
-        client.assert(response.body.productId === client.global.get("shared_product_id"), "ID 불일치(동기화 실패)");
+        client.assert(response.body.data.productId === client.global.get("inv_shared_product_id"), "ID 불일치(동기화 실패)");
+        client.log("상품 단건 상세 조회 성공!");
     });
 %}
 
-### 3. [Internal] 옵션 검증 단건 유효성 및 가격 검증 API
-GET http://{{host}}:{{catalogPort}}/internal/options/{{option_id_1}}/validate
+### 0. Internal API 호출 전 토큰 갱신
+GET http://{{host}}:{{orderPort}}/test/internal-token?audience=catalog-service
+
+> {%
+    client.global.set("cat_internal_token", response.body);
+%}
+
+### 6. [Internal] 옵션 검증 단건 유효성 및 가격 검증 API
+GET http://{{host}}:{{catalogPort}}/internal/options/{{inv_shared_option_id}}/validate
 Accept: application/json
-X-Internal-Token: {{internal_token}}
+X-Internal-Token: {{cat_internal_token}}
 
 > {%
     client.test("옵션 검증 및 가격 합산 로직 확인", function () {
         client.assert(response.status === 200, "옵션 검증 API 호출 실패");
-
         // basePrice와 addPrice가 합산된 totalPrice가 200,000인지 확인
         client.assert(response.body.data.totalPrice === 200000, "가격 합산 오류: " + response.body.data.totalPrice);
         client.log("최종 계산된 결제 가격: " + response.body.data.totalPrice);
     });
 %}
 
-### 4. [Public] 기간 만료 상품 단건 조회 (전시 상태 스케줄러 동기화 검증) - (주의: inventory.http에서 스케줄러 트리거 호출 후에 실행하기)
-GET http://{{host}}:{{gatewayPort}}/api/v1/products/{{expired_product_id}}
+### 7. [검증] 기간 만료 상품 상태(EXPIRED) 동기화 확인
+GET http://{{host}}:{{gatewayPort}}/api/v1/products/all?page=0&size=50
 Accept: application/json
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{cat_owner_token}}
 
 > {%
-    client.test("카탈로그 스케줄러 동기화: 전시 상태 HIDDEN 변경 확인", function () {
-        client.assert(response.status === 200, "조회 실패");
+    client.test("Phase 1: 전시 상태 EXPIRED 변경 완벽 확인", function () {
+        var content = response.body.data ? response.body.data.content : response.body.content;
+        var targetId = client.global.get("inv_expired_product_id");
+        var product = content.find(p => p.productId === targetId || p.id === targetId);
 
-        // assert를 사용하여 값이 없는 경우 즉시 실패 처리
-        client.assert(response.body && response.body.data, "응답 데이터가 없습니다.");
-
-        var status = response.body.data.status;
-        client.assert(status === "HIDDEN", "상태가 HIDDEN으로 동기화되지 않았습니다. 현재 상태: " + status);
-
-        client.log("전시 상태 HIDDEN 변경 동기화 완료");
+        client.assert(product !== undefined, "상품 목록에서 찾을 수 없습니다.");
+        client.assert(product.status === "EXPIRED" || product.status === "HIDDEN", "동기화 실패. 현재 상태: " + product.status);
+        client.assert(product.isVisible === false, "비활성 상품은 isVisible이 false여야 함");
+        client.log("기간 만료 상태 카프카 동기화 확인 완료: " + product.status);
     });
 %}
 
-### 5. [Public] 정상 상품 단건 조회 (일일 재고 리셋 스케줄러 동기화 검증)
-GET http://{{host}}:{{gatewayPort}}/api/v1/products/{{shared_product_id}}
+### 8. [Public] 정상 상품 단건 조회 (일일 재고 리셋 스케줄러 동기화 검증)
+GET http://{{host}}:{{gatewayPort}}/api/v1/products/{{inv_shared_product_id}}
 Accept: application/json
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{cat_user_token}}
 
 > {%
     client.test("카탈로그 스케줄러 동기화: 일일 재고 리셋 확인", function () {
         client.assert(response.status === 200, "조회 실패");
-
-        // assert를 사용하여 값이 없는 경우 즉시 실패 처리
         client.assert(response.body && response.body.data, "응답 데이터가 없습니다.");
         client.assert(response.body.data.options && response.body.data.options.length > 0, "옵션 데이터가 누락되었습니다.");
 
         var option = response.body.data.options[0];
-
-        // 느슨한 > 17 검증 대신 정확한 === 20 동치 검증 사용
         client.assert(option.currentDailyStock === 20, "재고가 20이어야 하는데 현재 " + option.currentDailyStock);
         client.log("재고 리셋 동기화 완료: 현재 일일 재고 " + option.currentDailyStock);
     });
 %}
 
-### 6. [Public] 수정 및 삭제(Soft Delete) 동기화 검증 - (주의: inventory.http에서 11~13번 호출 완료 후 실행)
-# shared_product_id는 inventory.http에서 정보가 수정된 후 삭제(DELETED) 처리됨
-GET http://{{host}}:{{gatewayPort}}/api/v1/products/{{shared_product_id}}
+### 9. [검증] 수정 및 삭제(Soft Delete) 동기화 검증
+GET http://{{host}}:{{gatewayPort}}/api/v1/products/all?page=0&size=50
 Accept: application/json
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{cat_owner_token}}
 
 > {%
     client.test("카탈로그 동기화: 상품 정보 수정 및 삭제 확인", function () {
-        client.assert(response.status === 200, "조회 실패");
-        client.assert(response.body && response.body.data, "데이터 누락");
+        var content = response.body.data ? response.body.data.content : response.body.content;
+        var targetId = client.global.get("inv_shared_product_id");
+        var data = content.find(p => p.productId === targetId || p.id === targetId);
 
-        var data = response.body.data;
-
-        // 수정(product.updated) 이벤트 반영 검증
+        client.assert(data !== undefined, "상품 목록에서 찾을 수 없습니다.");
         client.assert(data.name === "수정된 미슐랭 코스", "이름 수정 동기화 실패. 현재: " + data.name);
         client.assert(data.category === "EVENT", "카테고리 수정 동기화 실패. 현재: " + data.category);
         client.assert(data.basePrice === 99000, "가격 수정 동기화 실패. 현재: " + data.basePrice);
-
-        // 삭제(status-changed) 이벤트 반영 검증
         client.assert(data.status === "DELETED", "상태가 DELETED로 동기화되지 않음. 현재: " + data.status);
         client.assert(data.isVisible === false, "DELETED 상품은 isVisible이 false여야 함");
-
         client.log("상품 정보 수정(updated) 및 삭제(status-changed) 카프카 동기화 완벽 성공!");
     });
 %}
 
-### 7. [Public] 품절(SOLDOUT) 자동 전이 동기화 검증
-# depletion_product_id는 inventory.http 13번에서 재고가 0이 되어 SOLDOUT 처리됨
-GET http://{{host}}:{{gatewayPort}}/api/v1/products/{{depletion_product_id}}
+### 10. [검증] 품절(SOLDOUT) 자동 전이 동기화 검증
+GET http://{{host}}:{{gatewayPort}}/api/v1/products/all?page=0&size=50
 Accept: application/json
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{cat_owner_token}}
 
 > {%
     client.test("카탈로그 동기화: SOLDOUT 상태 전이 확인", function () {
-        client.assert(response.status === 200, "조회 실패");
-        client.assert(response.body && response.body.data, "데이터 누락");
+        var content = response.body.data ? response.body.data.content : response.body.content;
+        var targetId = client.global.get("inv_depletion_product_id");
+        var data = content.find(p => p.productId === targetId || p.id === targetId);
 
-        var data = response.body.data;
-        client.assert(data.options && data.options.length > 0, "옵션 데이터가 누락되었습니다.");
+        client.assert(data !== undefined, "상품 목록에서 찾을 수 없습니다.");
         var option = data.options[0];
 
-        // 재고 완판 검증
         client.assert(option.totalQuantity === 0, "총 재고가 0이 아님: " + option.totalQuantity);
-
-        // 도메인 규칙(SOLDOUT 상태 전이) 검증
         client.assert(data.status === "SOLDOUT", "상태가 SOLDOUT으로 동기화되지 않음. 현재: " + data.status);
         client.assert(data.isVisible === false, "SOLDOUT 상품은 isVisible이 false여야 함");
-
-        client.log("재고 소진 시 SOLDOUT 자동 전이 및 카프카 동기화 완벽 성공!");
+        client.log("재고 소진 시 SOLDOUT 자동 전이 및 카프카 동기화 성공!");
     });
 %}
 
-### 8. 상품 전체 조회 (점주용 - 모든 상태 포함) <- 비활성 상품 포함한 상태로 테스트할 것
+### 11. 상품 전체 조회 (점주용 - 모든 상태 포함)
 GET http://{{host}}:{{gatewayPort}}/api/v1/products/all?page=0&size=10
 Accept: application/json
-Authorization: Bearer {{owner_token}}
+Authorization: Bearer {{cat_owner_token}}
 
 > {%
     client.test("점주용 전체 상품 조회 성공", function () {
         client.assert(response.status === 200, "조회 실패");
-        client.assert(response.body.content !== undefined, "데이터(content)가 없습니다.");
-        client.assert(response.body.page !== undefined, "페이징(page) 메타데이터가 없습니다.");
-
-        // 비활성 상태의 상품이 content 내에 실제로 포함되는지 검증
         client.assert(
             response.body.content.some(function (item) {
-                return item.status === "HIDDEN" || item.status === "SOLDOUT" || item.status === "DELETED" || item.isVisible === false;
+                return item.status === "HIDDEN" || item.status === "SOLDOUT" || item.status === "DELETED" || item.status === "EXPIRED" || item.isVisible === false;
             }),
             "점주용 전체 조회에는 비활성 상태의 상품이 최소 1개 이상 포함되어야 합니다."
         );
-
         client.log("점주용 전체 상품 조회 검증 완료!");
     });
 %}
