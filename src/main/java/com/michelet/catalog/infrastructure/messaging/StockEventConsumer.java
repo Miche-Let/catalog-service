@@ -1,6 +1,7 @@
 package com.michelet.catalog.infrastructure.messaging;
 
 import com.michelet.catalog.application.ProductViewCommandService;
+import com.michelet.catalog.infrastructure.messaging.dto.DailyStockResetEvent;
 import com.michelet.catalog.infrastructure.messaging.dto.StockReservedEvent;
 import com.michelet.catalog.infrastructure.messaging.dto.StockRestoredEvent;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,13 @@ public class StockEventConsumer {
         productViewCommandService.applyStockRestoredEvent(event);
     }
 
-    //TODO 향후 추가될 리스너들:
-    // @KafkaListener(topics = "stock.daily-reset", ...)
+    // 일일 재고 초기화 리스너
+    @KafkaListener(
+        topics = "${catalog.kafka.topic.daily-reset:stock.daily-reset}",
+        groupId = "${spring.kafka.consumer.group-id:catalog-service-consumer}"
+    )
+    public void consumeDailyStockResetEvent(DailyStockResetEvent event) {
+        log.info("stock.daily-reset 이벤트 수신: {}", event);
+        productViewCommandService.resetAllDailyStocks(event);
+    }
 }

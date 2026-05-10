@@ -161,8 +161,9 @@ public class ProductView {
 
     // 전시 상태 변경
     public void updateStatus(String status) {
-        if (status == null || (!"ACTIVE".equals(status) && !"HIDDEN".equals(status) && !"DELETED".equals(status)
-            && !"SOLDOUT".equals(status) && !"EXPIRED".equals(status))) {
+        if (status == null ||
+            (!"ACTIVE".equals(status) && !"HIDDEN".equals(status) && !"DELETED".equals(status) && !"SOLDOUT".equals(
+                status) && !"EXPIRED".equals(status))) {
             throw new IllegalArgumentException("유효하지 않은 상태 값입니다: " + status);
         }
 

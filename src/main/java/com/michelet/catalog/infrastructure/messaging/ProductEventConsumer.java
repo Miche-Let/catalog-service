@@ -1,7 +1,6 @@
 package com.michelet.catalog.infrastructure.messaging;
 
 import com.michelet.catalog.application.ProductViewCommandService;
-import com.michelet.catalog.infrastructure.messaging.dto.DailyStockResetEvent;
 import com.michelet.catalog.infrastructure.messaging.dto.ProductCreatedEvent;
 import com.michelet.catalog.infrastructure.messaging.dto.ProductStatusChangedEvent;
 import com.michelet.catalog.infrastructure.messaging.dto.ProductUpdatedEvent;
@@ -44,15 +43,5 @@ public class ProductEventConsumer {
     public void consumeProductStatusChangedEvent(ProductStatusChangedEvent event) {
         log.info("product.status-changed 이벤트 수신: {}", event);
         productViewCommandService.updateProductStatus(event);
-    }
-
-    // 일일 재고 초기화 리스너
-    @KafkaListener(
-        topics = "${catalog.kafka.topic.daily-reset:stock.daily-reset}",
-        groupId = "${spring.kafka.consumer.group-id:catalog-service-consumer}"
-    )
-    public void consumeDailyStockResetEvent(DailyStockResetEvent event) {
-        log.info("stock.daily-reset 이벤트 수신: {}", event);
-        productViewCommandService.resetAllDailyStocks(event);
     }
 }
