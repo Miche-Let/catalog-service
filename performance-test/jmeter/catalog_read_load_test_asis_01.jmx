@@ -3,7 +3,13 @@
   <hashTree>
     <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="1차 부하 테스트 - 카탈로그 조회">
       <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="사용자 정의 변수들">
-        <collectionProp name="Arguments.arguments"/>
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="AUTH_TOKEN" elementType="Argument">
+            <stringProp name="Argument.name">AUTH_TOKEN</stringProp>
+            <stringProp name="Argument.value">${__P(auth.token,)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+        </collectionProp>
       </elementProp>
     </TestPlan>
     <hashTree>
@@ -40,13 +46,13 @@
               </elementProp>
               <elementProp name="" elementType="Header">
                 <stringProp name="Header.name">Authorization</stringProp>
-                <stringProp name="Header.value">Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwZjljZjZjNy00MDJjLTQxZjQtODJhZC0xMWNkN2M4ZDdjOGIiLCJyb2xlIjoiVVNFUiIsImlhdCI6MTc3ODQ3MzA5NiwiZXhwIjoyMDkzODMzMDk2fQ.7l7W3xjfjEqAo8mCh9N2Tn5SVVLxfknWUwkbUYkGX4s</stringProp>
+                <stringProp name="Header.value">Bearer ${AUTH_TOKEN}</stringProp>
               </elementProp>
             </collectionProp>
           </HeaderManager>
           <hashTree/>
         </hashTree>
-        <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="결과들의 트리 보기">
+        <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="결과들의 트리 보기 - 카탈로그 조회">
           <boolProp name="ResultCollector.error_logging">false</boolProp>
           <objProp>
             <name>saveConfig</name>
@@ -80,7 +86,7 @@
               <connectTime>true</connectTime>
             </value>
           </objProp>
-          <stringProp name="filename">catalog-service/performance-test/jmeter/result_${__time(YMDHMS)}.jtl</stringProp>
+          <stringProp name="filename">./result_detail_${__time(YMDHMS)}.jtl</stringProp>
         </ResultCollector>
         <hashTree/>
         <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="요약 보고서 - 카탈로그 조회">
@@ -117,10 +123,21 @@
               <connectTime>true</connectTime>
             </value>
           </objProp>
-          <stringProp name="filename">catalog-service/performance-test/jmeter/result_${__time(YMDHMS)}.jtl</stringProp>
+          <stringProp name="filename">./result_summary_${__time(YMDHMS)}.jtl</stringProp>
         </ResultCollector>
         <hashTree/>
       </hashTree>
+      <Arguments guiclass="ArgumentsPanel" testclass="Arguments" testname="사용자 정의 변수들">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="AUTH_TOKEN" elementType="Argument">
+            <stringProp name="Argument.name">AUTH_TOKEN</stringProp>
+            <stringProp name="Argument.value"></stringProp>
+            <stringProp name="Argument.desc">슈퍼유저 토큰(실행 시 주입)</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+        </collectionProp>
+      </Arguments>
+      <hashTree/>
     </hashTree>
   </hashTree>
 </jmeterTestPlan>
