@@ -29,6 +29,8 @@
           <stringProp name="HTTPSampler.port">19000</stringProp>
           <stringProp name="HTTPSampler.protocol">http</stringProp>
           <stringProp name="HTTPSampler.path">/api/v1/products?page=0&amp;size=20</stringProp>
+          <stringProp name="HTTPSampler.connect_timeout">5000</stringProp>
+          <stringProp name="HTTPSampler.response_timeout">10000</stringProp>
           <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
           <stringProp name="HTTPSampler.method">GET</stringProp>
           <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
@@ -52,7 +54,7 @@
           </HeaderManager>
           <hashTree/>
         </hashTree>
-        <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="결과들의 트리 보기 - 카탈로그 조회">
+        <ResultCollector guiclass="SimpleDataWriter" testclass="ResultCollector" testname="결과 저장 (Headless)">
           <boolProp name="ResultCollector.error_logging">false</boolProp>
           <objProp>
             <name>saveConfig</name>
@@ -127,17 +129,6 @@
         </ResultCollector>
         <hashTree/>
       </hashTree>
-      <Arguments guiclass="ArgumentsPanel" testclass="Arguments" testname="사용자 정의 변수들">
-        <collectionProp name="Arguments.arguments">
-          <elementProp name="AUTH_TOKEN" elementType="Argument">
-            <stringProp name="Argument.name">AUTH_TOKEN</stringProp>
-            <stringProp name="Argument.value"></stringProp>
-            <stringProp name="Argument.desc">슈퍼유저 토큰(실행 시 주입)</stringProp>
-            <stringProp name="Argument.metadata">=</stringProp>
-          </elementProp>
-        </collectionProp>
-      </Arguments>
-      <hashTree/>
-    </hashTree>
+      </hashTree>
   </hashTree>
 </jmeterTestPlan>
