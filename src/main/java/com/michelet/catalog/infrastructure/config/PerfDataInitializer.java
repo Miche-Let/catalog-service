@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -29,7 +30,7 @@ public class PerfDataInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        long count = productViewRepository.count();
+        long currentCount = productViewRepository.count();
 
         // 1. 부하테스트 주문 타겟 고정 데이터 삽입
         try {
@@ -50,16 +51,22 @@ public class PerfDataInitializer implements ApplicationRunner {
                 .build();
             productViewRepository.save(targetProduct);
             log.info("[PerfDataInitializer] 카탈로그 타겟 고정 데이터(OptionId: {}) 세팅 완료", TEST_OPTION_ID);
+        } catch (DuplicateKeyException e) {
+            // 중복 키 에러만 잡아서 정상적인 로그로 넘김
+            log.info("[PerfDataInitializer] 타겟 데이터 이미 존재: {}", TEST_PRODUCT_ID);
         } catch (Exception e) {
-            // Unique Index 때문에 이미 데이터가 있으면 여기서 안전하게 튕겨내고 넘어감
-            log.warn("타겟 데이터 세팅 무시 (이미 존재할 수 있음): {}", e.getMessage());
+            // 그 외의 에러(DB 다운 등)는 삼키지 않고 던짐
+            log.error("타겟 데이터 세팅 중 예상치 못한 에러 발생", e);
+            throw e;
         }
 
-        // 2. 카탈로그 조회 부하용 10만 건 더미 데이터 삽입 (없을 때만)
-        if (count < 100000) {
-            log.info("[PerfDataInitializer]-catalog : 1차 카탈로그 조회를 위해 10만 건의 더미 도큐먼트를 생성함");
+        // 2. 카탈로그 조회 부하용 10만 건 더미 데이터 삽입
+        // 무조건 10만 개가 아니라 '부족한 개수(remaining)'만 계산해서 추가
+        long remaining = Math.max(0, 100000 - currentCount);
+        if (remaining > 0) {
+            log.info("[PerfDataInitializer]-catalog : 1차 카탈로그 조회를 위해 {}건의 더미 도큐먼트를 생성함", remaining);
             List<ProductView> products = new ArrayList<>();
-            for (int i = 0; i < 100000; i++) {
+            for (int i = 0; i < remaining; i++) {
                 ProductView.OptionView option = new ProductView.OptionView(
                     UUID.randomUUID(), "테스트 옵션 " + i, BigDecimal.ZERO,
                     1000, 1000, 1000
@@ -77,16 +84,18 @@ public class PerfDataInitializer implements ApplicationRunner {
                     .build();
                 products.add(product);
 
-                if (i % 10000 == 0 && i > 0) {
+                // i % 10000 대신 명확하게 리스트 사이즈로 체크
+                if (products.size() == 10000) {
                     productViewRepository.saveAll(products);
                     products.clear();
-                    log.info("... {}건 저장 완료", i);
+                    log.info("... 누적 {}건 저장 완료", i + 1);
                 }
             }
+            // 남은 찌꺼기 데이터가 있으면 마저 저장
             if (!products.isEmpty()) {
                 productViewRepository.saveAll(products);
             }
-            log.info("[PerfDataInitializer] 카탈로그 10만 건 데이터 생성 완료");
+            log.info("[PerfDataInitializer] 카탈로그 데이터 생성 완료 (현재 총 {}건)", productViewRepository.count());
         }
     }
 }
