@@ -23,6 +23,7 @@ public class PerfDataInitializer implements ApplicationRunner {
     private final ProductViewRepository productViewRepository;
 
     // Order 서비스가 검증할 고정 UUID 타겟
+    public static final UUID TEST_PRODUCT_ID = UUID.fromString("55555555-5555-5555-5555-555555555555"); // 고정 상품 ID
     public static final UUID TEST_OPTION_ID = UUID.fromString("44444444-4444-4444-4444-444444444444");
     public static final UUID TEST_RESTAURANT_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
 
@@ -37,7 +38,7 @@ public class PerfDataInitializer implements ApplicationRunner {
                 1000000, 1000000, 1000000
             );
             ProductView targetProduct = ProductView.builder()
-                .productId(UUID.randomUUID())
+                .productId(TEST_PRODUCT_ID) // 랜덤 UUID 대신 고정 ID 사용
                 .restaurantId(TEST_RESTAURANT_ID)
                 .name("타겟 부하테스트 상품")
                 .category("MEALKIT")
@@ -50,6 +51,7 @@ public class PerfDataInitializer implements ApplicationRunner {
             productViewRepository.save(targetProduct);
             log.info("[PerfDataInitializer] 카탈로그 타겟 고정 데이터(OptionId: {}) 세팅 완료", TEST_OPTION_ID);
         } catch (Exception e) {
+            // Unique Index 때문에 이미 데이터가 있으면 여기서 안전하게 튕겨내고 넘어감
             log.warn("타겟 데이터 세팅 무시 (이미 존재할 수 있음): {}", e.getMessage());
         }
 
