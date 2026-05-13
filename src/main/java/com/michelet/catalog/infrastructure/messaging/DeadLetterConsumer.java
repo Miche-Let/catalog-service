@@ -33,12 +33,17 @@ public class DeadLetterConsumer {
         String originalTopic = extractHeaderAsString(record, KafkaHeaders.DLT_ORIGINAL_TOPIC);
         String exceptionMessage = extractHeaderAsString(record, KafkaHeaders.DLT_EXCEPTION_MESSAGE);
 
-        log.error("================================================================================");
-        log.error("[CRITICAL ALERT] 카탈로그 DLT 에러 메시지 격리 수신 완료!");
-        log.error("원본 토픽 : {}", originalTopic);
-        log.error("에러 원인 : {}", exceptionMessage);
-        log.error("원본 데이터 : {}", record.value() != null ? record.value() : "데이터 없음");
-        log.error("================================================================================");
+        log.error("""
+                ================================================================================
+                [CRITICAL ALERT] 카탈로그 DLT 에러 메시지 격리 수신 완료!
+                원본 토픽 : {}
+                에러 원인 : {}
+                원본 데이터 : {}
+                ================================================================================""",
+            originalTopic,
+            exceptionMessage,
+            record.value() != null ? record.value() : "데이터 없음"
+        );
     }
 
     private String extractHeaderAsString(ConsumerRecord<String, String> record, String headerKey) {

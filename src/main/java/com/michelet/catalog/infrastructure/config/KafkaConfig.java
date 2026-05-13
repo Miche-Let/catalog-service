@@ -44,8 +44,12 @@ public class KafkaConfig {
 
         DefaultErrorHandler errorHandler = new DefaultErrorHandler(recoverer,
             new FixedBackOff(retryIntervalMs, retryMaxAttempts));
-        // 어떤 에러든 재시도 없이 즉시 DLT로 던져서 확인하기 위함
-        errorHandler.addNotRetryableExceptions(Exception.class);
+        // 재시도가 의미 없는 예외만 즉시 DLT로 보냄
+        errorHandler.addNotRetryableExceptions(
+            org.springframework.kafka.support.serializer.DeserializationException.class,
+            IllegalArgumentException.class
+        );
+
         return errorHandler;
     }
 
