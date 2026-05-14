@@ -44,6 +44,10 @@ catalog:
             status-changed: "product.status-changed"
             daily-reset: "stock.daily-reset"
             product-updated: "product.updated"
+        consumer:
+            retry:
+                interval-ms: 1000
+                max-attempts: 3
 
 internal:
     auth:
