@@ -74,9 +74,18 @@ public class KafkaConfig {
 
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        props.remove("spring.deserializer.value.delegate.class"); // JSON 파싱 찌꺼기 제거
+
+        // ErrorHandlingDeserializer/Json 관련 잔여 설정 일관성 있게 정리
+        props.remove("spring.deserializer.key.delegate.class");
+        props.remove("spring.deserializer.value.delegate.class");
+        props.remove("spring.json.trusted.packages");
+        props.remove("spring.json.type.mapping");
 
         factory.setConsumerFactory(new DefaultKafkaConsumerFactory<>(props));
+
+        // DLT 처리 실패 시 기본 핸들러(FixedBackOff(0,9))로 폴백되지 않도록 명시적 지정
+        factory.setCommonErrorHandler(new DefaultErrorHandler(new FixedBackOff(0L, 0L)));
+
         return factory;
     }
 }
