@@ -32,6 +32,7 @@ public class DeadLetterConsumer {
     public void consumeDeadLetter(ConsumerRecord<String, String> record) {
         String originalTopic = extractHeaderAsString(record, KafkaHeaders.DLT_ORIGINAL_TOPIC);
         String exceptionMessage = extractHeaderAsString(record, KafkaHeaders.DLT_EXCEPTION_MESSAGE);
+        String stackTrace = extractHeaderAsString(record, KafkaHeaders.DLT_EXCEPTION_STACKTRACE);
 
         log.error("""
                 ================================================================================
@@ -39,10 +40,13 @@ public class DeadLetterConsumer {
                 원본 토픽 : {}
                 에러 원인 : {}
                 원본 데이터 : {}
+                상세 트레이스 :
+                {}
                 ================================================================================""",
             originalTopic,
             exceptionMessage,
-            record.value() != null ? record.value() : "데이터 없음"
+            record.value() != null ? record.value() : "데이터 없음",
+            stackTrace
         );
     }
 
