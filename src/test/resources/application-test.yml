@@ -16,16 +16,9 @@ spring:
         hibernate:
             ddl-auto: create-drop
 
-    # JUnit 테스트 가동 시 프로덕션 캐시매니저 충돌 방지용 모킹 가이드 주입
-    data:
-        redis:
-            host: localhost
-            port: 6379
-
-    # 만약 MongoDB 관련 에러가 발생한다면 아래 설정을 추가
-    # data:
-    #   mongodb:
-    #     uri: mongodb://localhost:27017/test
+    # 테스트 실행 시 Redis 연결 시도로 인한 컨텍스트 붕괴 방지
+    cache:
+        type: none
 
 catalog:
     kafka:

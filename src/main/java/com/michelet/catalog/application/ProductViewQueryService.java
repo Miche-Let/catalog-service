@@ -25,8 +25,12 @@ public class ProductViewQueryService {
     private final ProductViewRepository productViewRepository;
 
     // 고객용 - 노출 중인 상품만 조회
-    // Cache-Aside 패턴 도입: 페이지 번호 단위로 독립적 캐시 생성 관리
-    @Cacheable(value = "products_cache", key = "#pageable.pageNumber", cacheManager = "catalogCacheManager")
+    // Cache-Aside 패턴 도입: 페이지 번호 단위로 독립적 캐시 생성 관리 - 페이지 크기와 정렬 조건을 캐시 키에 포함하여 충돌 방지
+    @Cacheable(
+        value = "products_cache",
+        key = "T(java.lang.String).format('%d-%d-%s', #pageable.pageNumber, #pageable.pageSize, #pageable.sort.toString())",
+        cacheManager = "catalogCacheManager"
+    )
     public Page<ProductViewResponse> getActiveProducts(Pageable pageable) {
         log.info("[Cache Miss] 몽고DB로 직행하여 노출 상품 목록 조회 활성화 - Page: {}", pageable.getPageNumber());
 
