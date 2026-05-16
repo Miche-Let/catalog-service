@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -195,7 +196,13 @@ public class ProductViewCommandService {
         // 풀스캔으로 인한 OOM 방지를 위해 활성화/품절된 타겟 도큐먼트군만 페이징 세그먼트화
         List<String> targetStatuses = List.of("ACTIVE", "SOLDOUT");
         int pageSize = 100;
-        PageRequest pageRequest = PageRequest.of(0, pageSize);
+
+        // 데이터 수정 시 조회 범위 정합성이 깨져 누락/중복이 발생하는 버그를 막기 위해 productId 오름차순 고정 정렬 부여
+        PageRequest pageRequest = PageRequest.of(
+            0,
+            pageSize,
+            Sort.by(Sort.Direction.ASC, "productId")
+        );
         Page<ProductView> page;
         int totalProcessed = 0;
 

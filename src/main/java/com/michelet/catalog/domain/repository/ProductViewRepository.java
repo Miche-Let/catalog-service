@@ -16,7 +16,7 @@ public interface ProductViewRepository extends MongoRepository<ProductView, Stri
 
     Optional<ProductView> findByProductId(UUID productId);
 
-    @Query("{ 'options.optionId': ?0 }")
+    @Query("{ 'options.option_id': ?0 }")
     Optional<ProductView> findByOptionId(UUID optionId);
 
     Page<ProductView> findByStatusIn(List<String> statuses, Pageable pageable);

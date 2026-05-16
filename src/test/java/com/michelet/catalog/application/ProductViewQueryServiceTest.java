@@ -46,7 +46,7 @@ class ProductViewQueryServiceTest {
             .build();
 
         PageRequest pageRequest = PageRequest.of(0, 10);
-        // Mocking: findByIsVisibleTrue 호출 시 동작 설정
+        // Mocking: findAllVisibleProducts 호출 시 동작 설정
         given(productViewRepository.findAllVisibleProducts(pageRequest)).willReturn(
             new PageImpl<>(List.of(productView)));
 
