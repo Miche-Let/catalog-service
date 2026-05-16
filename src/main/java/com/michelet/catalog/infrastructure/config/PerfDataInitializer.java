@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -57,8 +58,14 @@ public class PerfDataInitializer implements ApplicationRunner {
                     .display(new ProductView.Display(LocalDateTime.now(), LocalDateTime.now().plusYears(1)))
                     .options(List.of(targetOption))
                     .build();
-                productViewRepository.save(targetProduct);
-                log.info("[PerfDataInitializer] 카탈로그 타겟 고정 데이터(OptionId: {}) 세팅 완료", TEST_OPTION_ID);
+
+                // TOCTOU 동시성 예외 방어를 위한 save 단위 try-catch
+                try {
+                    productViewRepository.save(targetProduct);
+                    log.info("[PerfDataInitializer] 카탈로그 타겟 고정 데이터(OptionId: {}) 세팅 완료", TEST_OPTION_ID);
+                } catch (DuplicateKeyException e) {
+                    log.info("[PerfDataInitializer] 동시 기동으로 인해 타겟 데이터가 이미 존재하여 생략합니다: {}", TEST_PRODUCT_ID);
+                }
             } else {
                 log.info("[PerfDataInitializer] 타겟 데이터가 이미 존재하여 생략합니다: {}", TEST_PRODUCT_ID);
             }

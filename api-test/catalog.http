@@ -209,6 +209,7 @@ Authorization: Bearer {{cat_user_token}}
 
         // 0페이지의 첫 번째 상품을 동적으로 추출하여 테스트 타겟으로
         var targetProduct = content[0];
+        client.assert(targetProduct.options && targetProduct.options.length > 0, "타겟 상품 옵션이 비어있음.");
 
         client.global.set("dyn_restaurant_id", targetProduct.restaurantId);
         client.global.set("dyn_option_id", targetProduct.options[0].optionId);
@@ -248,7 +249,7 @@ Authorization: Bearer {{cat_user_token}}
     "restaurantId": "{{dyn_restaurant_id}}",
     "orderName": "동적 변수 기반 레디스 무효화 주문",
     "receivingMethod": "PICKUP",
-    "expiredAt": "2026-12-31T23:59:59",
+    "expiredAt": "2099-12-31T23:59:59",
     "items": [
         {
             "optionId": "{{dyn_option_id}}",
@@ -268,7 +269,12 @@ Authorization: Bearer {{cat_user_token}}
     });
 %}
 
-### 004 [최종 변동 조회] 캐시 무효화 검증
+
+### 004 [최종 변동 조회] 캐시 무효화 검증 - Kafka 소비 및 캐시 무효화 전파 대기 (비동기 지연 보정)
+< {%
+    client.log("카프카 비동기 캐시 무효화 전파를 위해 3초 대기...");
+    await sleep(3000);
+%}
 GET http://{{host}}:{{gatewayPort}}/api/v1/products?page=0&size=10
 Accept: application/json
 Authorization: Bearer {{cat_user_token}}
@@ -287,6 +293,7 @@ Authorization: Bearer {{cat_user_token}}
         var targetOption = targetProduct.options.find(o => o.optionId === dynOptionId);
         var latestStock = targetOption.currentDailyStock;
 
+        // 절대값이 아닌 '초기값 - 5'가 정확히 맞는지 검증
         var expectedStock = parseInt(client.global.get("initial_seed_stock")) - 5;
 
         client.log("최신 재고: " + latestStock + " / 예상 재고: " + expectedStock);
