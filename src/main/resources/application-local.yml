@@ -2,6 +2,10 @@ spring:
     data:
         mongodb:
             uri: mongodb://localhost:27017/michelet_catalog
+        # 로컬 구동용 Redis 인프라 바인딩
+        redis:
+            host: localhost
+            port: 6379
     kafka:
         bootstrap-servers: localhost:9092
 

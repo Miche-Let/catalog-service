@@ -34,26 +34,41 @@ public class PerfDataInitializer implements ApplicationRunner {
 
         // 1. 부하테스트 주문 타겟 고정 데이터 삽입
         try {
-            ProductView.OptionView targetOption = new ProductView.OptionView(
-                TEST_OPTION_ID, "타겟 부하테스트 옵션", BigDecimal.ZERO,
-                1000000, 1000000, 1000000
-            );
-            ProductView targetProduct = ProductView.builder()
-                .productId(TEST_PRODUCT_ID) // 랜덤 UUID 대신 고정 ID 사용
-                .restaurantId(TEST_RESTAURANT_ID)
-                .name("타겟 부하테스트 상품")
-                .category("MEALKIT")
-                .status("ACTIVE")
-                .basePrice(BigDecimal.valueOf(10000))
-                .isVisible(true)
-                .display(new ProductView.Display(LocalDateTime.now(), LocalDateTime.now().plusYears(1)))
-                .options(List.of(targetOption))
-                .build();
-            productViewRepository.save(targetProduct);
-            log.info("[PerfDataInitializer] 카탈로그 타겟 고정 데이터(OptionId: {}) 세팅 완료", TEST_OPTION_ID);
-        } catch (DuplicateKeyException e) {
-            // 중복 키 에러만 잡아서 정상적인 로그로 넘김
-            log.info("[PerfDataInitializer] 타겟 데이터 이미 존재: {}", TEST_PRODUCT_ID);
+            // DB에 이미 타겟 데이터가 있는지 검사하여 중복 적재 차단!
+            boolean targetExists = false;
+            try {
+                targetExists = productViewRepository.findByProductId(TEST_PRODUCT_ID).isPresent();
+            } catch (org.springframework.dao.IncorrectResultSizeDataAccessException e) {
+                targetExists = true; // 이미 2개 이상 복제되어 있다면 존재하는 것으로 취급
+            }
+
+            if (!targetExists) {
+                ProductView.OptionView targetOption = new ProductView.OptionView(
+                    TEST_OPTION_ID, "타겟 부하테스트 옵션", BigDecimal.ZERO,
+                    1000000, 1000000, 1000000
+                );
+                ProductView targetProduct = ProductView.builder()
+                    .productId(TEST_PRODUCT_ID) // 랜덤 UUID 대신 고정 ID 사용
+                    .restaurantId(TEST_RESTAURANT_ID)
+                    .name("타겟 부하테스트 상품")
+                    .category("MEALKIT")
+                    .status("ACTIVE")
+                    .basePrice(BigDecimal.valueOf(10000))
+                    .isVisible(true)
+                    .display(new ProductView.Display(LocalDateTime.now(), LocalDateTime.now().plusYears(1)))
+                    .options(List.of(targetOption))
+                    .build();
+
+                // TOCTOU 동시성 예외 방어를 위한 save 단위 try-catch
+                try {
+                    productViewRepository.save(targetProduct);
+                    log.info("[PerfDataInitializer] 카탈로그 타겟 고정 데이터(OptionId: {}) 세팅 완료", TEST_OPTION_ID);
+                } catch (DuplicateKeyException e) {
+                    log.info("[PerfDataInitializer] 동시 기동으로 인해 타겟 데이터가 이미 존재하여 생략합니다: {}", TEST_PRODUCT_ID);
+                }
+            } else {
+                log.info("[PerfDataInitializer] 타겟 데이터가 이미 존재하여 생략합니다: {}", TEST_PRODUCT_ID);
+            }
         } catch (Exception e) {
             // 그 외의 에러(DB 다운 등)는 삼키지 않고 던짐
             log.error("타겟 데이터 세팅 중 예상치 못한 에러 발생", e);

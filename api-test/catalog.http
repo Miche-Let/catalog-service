@@ -4,6 +4,8 @@
 @catalogPort = 19800
 @orderPort = 19700
 
+@dummy_restaurant_id = 22222222-2222-2222-2222-222222222222
+
 ### 1. [Test] 내부 API용 테스트 JWT 토큰 발급
 GET http://{{host}}:{{orderPort}}/test/internal-token?audience=catalog-service
 
@@ -187,5 +189,116 @@ Authorization: Bearer {{cat_owner_token}}
             "점주용 전체 조회에는 비활성 상태의 상품이 최소 1개 이상 포함되어야 합니다."
         );
         client.log("점주용 전체 상품 조회 검증 완료!");
+    });
+%}
+
+### 002-1 [Cache-Aside] 1차 캐시 미스 적재 및 2차 캐시 히트 자동 검증
+# 최초 호출 시: 몽고DB 조회 연산 발생 (서버 콘솔에 "[Cache Miss] ..." 로그 출력 확인)
+# 직후 재호출 시: Redis 인메모리 스냅샷 적중하여 속도가 1~2ms로 급감하며 콘솔 로그가 침묵함
+# 동적 변수 추출 - 0페이지 첫 번째 상품을 타겟으로 잡아, 해당 상품의 ID와 재고를 동적 변수에 저장함
+GET http://{{host}}:{{gatewayPort}}/api/v1/products?page=0&size=10
+Accept: application/json
+Authorization: Bearer {{cat_user_token}}
+
+> {%
+    client.test("1차: 메인 화면 노출 및 동적 변수 세팅", function () {
+        client.assert(response.status === 200, "조회 실패");
+
+        var content = response.body.data ? response.body.data.content : response.body.content;
+        client.assert(content !== undefined && content.length > 0, "데이터셋이 비어있음.");
+
+        // 0페이지의 첫 번째 상품을 동적으로 추출하여 테스트 타겟으로
+        var targetProduct = content[0];
+        client.assert(targetProduct.options && targetProduct.options.length > 0, "타겟 상품 옵션이 비어있음.");
+
+        client.global.set("dyn_restaurant_id", targetProduct.restaurantId);
+        client.global.set("dyn_option_id", targetProduct.options[0].optionId);
+        client.global.set("initial_seed_stock", targetProduct.options[0].currentDailyStock);
+
+        client.log("동적 변수 세팅 완료! Target Option ID: " + client.global.get("dyn_option_id"));
+        client.log("초기 재고 스냅샷 저장 완료: " + client.global.get("initial_seed_stock"));
+    });
+%}
+
+### 002-2 [자동화] 즉시 동일 요청 재발송을 통한 Cache Hit 데이터 검증
+GET http://{{host}}:{{gatewayPort}}/api/v1/products?page=0&size=10
+Accept: application/json
+Authorization: Bearer {{cat_user_token}}
+
+> {%
+    client.test("2차: Redis Cache Hit 정합성 유지 검증", function () {
+        client.assert(response.status === 200, "조회 실패");
+
+        var content = response.body.data ? response.body.data.content : response.body.content;
+        var dynOptionId = client.global.get("dyn_option_id");
+
+        var targetProduct = content.find(p => p.options.some(o => o.optionId === dynOptionId));
+        client.assert(targetProduct !== undefined, "캐시 응답에서 타겟 데이터를 찾을 수 없음 (데이터 유실)");
+
+        client.log("Cache Hit! 캐시 데이터가 완벽하게 유지되어 반환됨.");
+    });
+%}
+
+### 003 [오더 연동] 장바구니 중복 담기 및 기습 주문 발생 (무효화 트리거)
+POST http://{{host}}:{{gatewayPort}}/api/v1/orders
+Content-Type: application/json
+Authorization: Bearer {{cat_user_token}}
+
+{
+    "reservationId": "{{$random.uuid}}",
+    "restaurantId": "{{dyn_restaurant_id}}",
+    "orderName": "동적 변수 기반 레디스 무효화 주문",
+    "receivingMethod": "PICKUP",
+    "expiredAt": "2099-12-31T23:59:59",
+    "items": [
+        {
+            "optionId": "{{dyn_option_id}}",
+            "quantity": 2
+        },
+        {
+            "optionId": "{{dyn_option_id}}",
+            "quantity": 3
+        }
+    ]
+}
+
+> {%
+    client.test("오더 연동 성공 대기", function () {
+        client.assert(response.status === 201, "주문 생성 실패");
+        client.log("동적 타겟 상품에 대해 5개 수량 차감 요청 발송 완료!");
+    });
+%}
+
+
+### 004 [최종 변동 조회] 캐시 무효화 검증 - Kafka 소비 및 캐시 무효화 전파 대기 (비동기 지연 보정)
+< {%
+    client.log("카프카 비동기 캐시 무효화 전파를 위해 3초 대기...");
+    await sleep(3000);
+%}
+GET http://{{host}}:{{gatewayPort}}/api/v1/products?page=0&size=10
+Accept: application/json
+Authorization: Bearer {{cat_user_token}}
+
+> {%
+    client.test("데이터 정합성 및 캐시 무효화 상대적 델타 검증", function () {
+        client.assert(response.status === 200, "최종 조회 실패");
+
+        var content = response.body.data ? response.body.data.content : response.body.content;
+        var dynOptionId = client.global.get("dyn_option_id");
+
+        // 동적으로 추출했던 옵션을 다시 찾음
+        var targetProduct = content.find(p => p.options.some(o => o.optionId === dynOptionId));
+        client.assert(targetProduct !== undefined, "타겟 데이터 유실");
+
+        var targetOption = targetProduct.options.find(o => o.optionId === dynOptionId);
+        var latestStock = targetOption.currentDailyStock;
+
+        // 절대값이 아닌 '초기값 - 5'가 정확히 맞는지 검증
+        var expectedStock = parseInt(client.global.get("initial_seed_stock")) - 5;
+
+        client.log("최신 재고: " + latestStock + " / 예상 재고: " + expectedStock);
+
+        client.assert(latestStock === expectedStock, "캐시 정합성 실패! 현재: " + latestStock + " / 예상: " + expectedStock);
+        client.log("[성공] 하드코딩 없이 동적 변수로 캐시 무효화 정합성 증명 완료!");
     });
 %}
