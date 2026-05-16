@@ -21,7 +21,7 @@ public class StockEventConsumer {
         topics = "${catalog.kafka.topic.stock-reserved:stock.reserved}",
         groupId = "${spring.kafka.consumer.group-id:catalog-service-consumer}"
     )
-    @CacheEvict(value = "products_cache", allEntries = true, cacheManager = "catalogCacheManager") // 재고 차감 시 캐시 초기화 트리거
+    // @CacheEvict 제거 - 재고가 차감되어도 메인 화면 캐시는 유지하여 조회 성능 극대화
     public void consumeStockReservedEvent(StockReservedEvent event) {
         log.info("stock.reserved 이벤트 수신: {}", event);
         // KafkaListener Container가 에러를 인지하고 재시도 할 수 있도록
@@ -32,7 +32,7 @@ public class StockEventConsumer {
         topics = "${catalog.kafka.topic.stock-restored:stock.restored}",
         groupId = "${spring.kafka.consumer.group-id:catalog-service-consumer}"
     )
-    @CacheEvict(value = "products_cache", allEntries = true, cacheManager = "catalogCacheManager") // 재고 원복 시 캐시 초기화 트리거
+    // @CacheEvict 제거 - 재고가 복구되어도 캐시 유지
     public void consumeStockRestoredEvent(StockRestoredEvent event) {
         log.info("stock.restored 이벤트 수신: {}", event);
         productViewCommandService.applyStockRestoredEvent(event);
@@ -44,7 +44,7 @@ public class StockEventConsumer {
         groupId = "${spring.kafka.consumer.group-id:catalog-service-consumer}"
     )
     @CacheEvict(value = "products_cache", allEntries = true, cacheManager = "catalogCacheManager")
-    // 자정 전수 스캔 초기화 시 캐시 전면 무효화
+    // 자정 전수 스캔 초기화 시에만 캐시 전면 무효화
     public void consumeDailyStockResetEvent(DailyStockResetEvent event) {
         log.info("stock.daily-reset 이벤트 수신: {}", event);
         productViewCommandService.resetAllDailyStocks(event);

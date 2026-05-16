@@ -168,8 +168,16 @@ public class ProductView {
         }
 
         this.status = status;
-        // 상태가 ACTIVE가 아니면 노출 여부(isVisible)도 자동으로 관리
-        this.isVisible = "ACTIVE".equals(status);
+
+        // 품절(SOLDOUT) 상태일 때는 실시간으로 노출 여부를 끄지 않고 스케줄러가 처리하도록 지연시킴
+        if (!"SOLDOUT".equals(status)) {
+            this.isVisible = "ACTIVE".equals(status);
+        }
+    }
+
+    // 자정 배치 스케줄러가 일괄로 노출 상태를 업데이트할 때 사용할 전용 메서드
+    public void updateVisibility(boolean isVisible) {
+        this.isVisible = isVisible;
     }
 
     // 상품 부분 업데이트 로직

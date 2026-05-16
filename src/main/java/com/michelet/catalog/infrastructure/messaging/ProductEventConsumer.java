@@ -45,7 +45,12 @@ public class ProductEventConsumer {
         topics = "${catalog.kafka.topic.status-changed:product.status-changed}",
         groupId = "${spring.kafka.consumer.group-id:catalog-service-consumer}"
     )
-    @CacheEvict(value = "products_cache", allEntries = true, cacheManager = "catalogCacheManager")
+    @CacheEvict(
+        value = "products_cache",
+        allEntries = true,
+        condition = "#event.newStatus() != 'SOLDOUT'",
+        cacheManager = "catalogCacheManager"
+    )
     // 이벤트 유입 즉시 메인 화면 캐시 제거
     public void consumeProductStatusChangedEvent(ProductStatusChangedEvent event) {
         log.info("product.status-changed 이벤트 수신: {}", event);
