@@ -2,6 +2,10 @@ spring:
     data:
         mongodb:
             uri: mongodb://mongo-db:27017/michelet_catalog
+        # 도커 컨테이너 가상 네트워크 통신용 Redis 바인딩
+        redis:
+            host: redis
+            port: 6379
     kafka:
         bootstrap-servers: kafka:9092
 

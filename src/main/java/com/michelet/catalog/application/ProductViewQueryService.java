@@ -6,13 +6,18 @@ import com.michelet.catalog.domain.model.ProductView;
 import com.michelet.catalog.domain.repository.ProductViewRepository;
 import com.michelet.catalog.presentation.dto.OptionValidationResponse;
 import com.michelet.catalog.presentation.dto.ProductViewResponse;
+import com.michelet.catalog.presentation.dto.RestPageImpl;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProductViewQueryService {
@@ -20,12 +25,21 @@ public class ProductViewQueryService {
     private final ProductViewRepository productViewRepository;
 
     // 고객용 - 노출 중인 상품만 조회
+    // Cache-Aside 패턴 도입: 페이지 번호 단위로 독립적 캐시 생성 관리
+    @Cacheable(value = "products_cache", key = "#pageable.pageNumber", cacheManager = "catalogCacheManager")
     public Page<ProductViewResponse> getActiveProducts(Pageable pageable) {
-        return productViewRepository.findAllVisibleProducts(pageable)
-            .map(ProductViewResponse::from);
+        log.info("[Cache Miss] 몽고DB로 직행하여 노출 상품 목록 조회 활성화 - Page: {}", pageable.getPageNumber());
+
+        Page<ProductView> page = productViewRepository.findAllVisibleProducts(pageable);
+        List<ProductViewResponse> content = page.getContent().stream()
+            .map(ProductViewResponse::from)
+            .toList();
+
+        // 500 역직렬화 에러를 막기 위해 일반 PageImpl 대신 커스텀 RestPageImpl 객체에 담아 반환!
+        return new RestPageImpl<>(content, page.getNumber(), page.getSize(), page.getTotalElements());
     }
 
-    // 점주/관리자용 - 상태 상관없이 전체 상품 조회
+    // 점주/관리자용 - 상태 상관없이 전체 상품 조회 (캐시 없음)
     public Page<ProductViewResponse> getAllProducts(Pageable pageable) {
         return productViewRepository.findAll(pageable)
             .map(ProductViewResponse::from);

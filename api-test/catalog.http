@@ -189,3 +189,83 @@ Authorization: Bearer {{cat_owner_token}}
         client.log("점주용 전체 상품 조회 검증 완료!");
     });
 %}
+
+### 002 [Cache-Aside Miss & Hit 유도] 메인 카탈로그 화면 다건 조회 연쇄 전송
+# 최초 호출 시: 몽고DB 조회 연산 발생 (서버 콘솔에 "[Cache Miss] ..." 로그 출력 확인)
+# 직후 재호출 시: Redis 인메모리 스냅샷 적중하여 속도가 1~2ms로 급감하며 콘솔 로그가 침묵함
+GET http://{{host}}:{{gatewayPort}}/api/v1/products?page=1&size=10
+Accept: application/json
+Authorization: Bearer {{cat_user_token}}
+
+> {%
+    client.test("메인 화면 노출 및 Cache-Aside 적재 성공 확인", function () {
+        client.assert(response.status === 200, "카탈로그 대량 조회 실패");
+
+        // 데이터 전송 규격 매칭 (content 배열 직접 파싱)
+        var content = response.body.content;
+        client.assert(content !== undefined && content.length > 0, "도큐먼트 데이터셋이 비어있음.");
+
+        var targetProduct = content.find(p => p.name === "타겟 부하테스트 상품");
+        client.assert(targetProduct !== undefined, "부하테스트용 타겟 상품 문서가 유실됨.");
+
+        client.log("몽고DB 초기 적재 수량: " + targetProduct.options[0].currentDailyStock + "개 확인.");
+        client.log("동일 요청을 한 번 더 클릭하여 Redis 캐시에서 1ms 만에 Hit 되는지 검증 후 다음 테스트 진행하기");
+    });
+%}
+
+
+### 003 [오더 연동 및 카프카 무효화 트리거] 장바구니에 중복 옵션을 담아 주문 발생
+POST http://{{host}}:{{gatewayPort}}/api/v1/orders
+Content-Type: application/json
+Authorization: Bearer {{cat_user_token}}
+
+{
+    "reservationId": "c4d17b16-c127-4efe-9599-73470904b936",
+    "restaurantId": "85c4b84f-f7f2-46cc-9dfc-4fc6dc805084",
+    "orderName": "레디스 무효화 검증 연동 주문",
+    "receivingMethod": "PICKUP",
+    "expiredAt": "2026-12-31T23:59:59",
+    "items": [
+        {
+            "optionId": "44444444-4444-4444-4444-444444444444",
+            "quantity": 2
+        },
+        {
+            "optionId": "44444444-4444-4444-4444-444444444444",
+            "quantity": 3
+        }
+    ]
+}
+
+> {%
+    client.test("오더 연동 성공 및 롤백 보상 트랜잭션 정상 예약 완료", function () {
+        client.assert(response.status === 201, "오더 서비스 연동 장애 발생");
+        client.log("묶음 주문 전송 성공! 내부 스케줄러가 카프카로 '수량 5개 합산 차감'을 던짐.");
+        client.log("카탈로그 Consumer 서버창에 '[Kafka] stock.reserved 이벤트 수신 및 캐시 무효화 트리거' 문구가 뜨면 바로 다음 테스트 진행.");
+    });
+%}
+
+
+### 004. [최종 변동 조회 및 정합성 매칭] 캐시가 무효화되어 최신 정보로 강제 갱신되었는지 검증
+# 만약 캐시가 정상적으로 날아갔다면(Evicted) 다시 한번 "[Cache Miss] ..." 콘솔 로그가 새롭게 찍히고,
+# 유저에게 최종적으로 반환되는 실시간 일일 재고 수량은 '999,995'개로 동기화되어 내려오게 됨
+GET http://{{host}}:{{gatewayPort}}/api/v1/products?page=0&size=10
+Accept: application/json
+Authorization: Bearer {{cat_user_token}}
+
+> {%
+    client.test("대망의 Redis 데이터 무효화 및 최종 정합성 마스터 매칭 검증", function () {
+        client.assert(response.status === 200, "최종 결과 수신 실패");
+
+        var content = response.body.content;
+        var targetProduct = content.find(p => p.name === "타겟 부하테스트 상품");
+        var latestStock = targetProduct.options[0].currentDailyStock;
+
+        client.log("현재 Redis 및 몽고DB 스냅샷에 마킹된 실시간 잔여 일일 재고: " + latestStock);
+
+        // 정합성 매치 가드: 100만 개에서 정확히 5개가 빠진 999995여야 성공함
+        client.assert(latestStock === 999995, "[FAIL] 캐시 무효화 연산 실패. 아직 레디스에 과거 데이터 1,000,000개가 그대로 존재함.");
+
+        client.log("[SUCCESS] 성공! Cache-Aside 적중 부하 분산과 Kafka 이벤트 기반 실시간 캐시 폭파 정합성 연동이 100% 무결하게 증명됨");
+    });
+%}

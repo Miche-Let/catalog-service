@@ -6,6 +6,7 @@ import com.michelet.catalog.infrastructure.messaging.dto.ProductStatusChangedEve
 import com.michelet.catalog.infrastructure.messaging.dto.ProductUpdatedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -20,6 +21,8 @@ public class ProductEventConsumer {
         topics = "${catalog.kafka.topic.product-created:product.created}",
         groupId = "${spring.kafka.consumer.group-id:catalog-service-consumer}"
     )
+    @CacheEvict(value = "products_cache", allEntries = true, cacheManager = "catalogCacheManager")
+    // 이벤트 유입 즉시 메인 화면 캐시 제거
     public void consumeProductCreatedEvent(ProductCreatedEvent event) {
         log.info("product.created 이벤트 수신: {}", event);
         productViewCommandService.createProductView(event);
@@ -30,6 +33,8 @@ public class ProductEventConsumer {
         topics = "${catalog.kafka.topic.product-updated:product.updated}",
         groupId = "${spring.kafka.consumer.group-id:catalog-service-consumer}"
     )
+    @CacheEvict(value = "products_cache", allEntries = true, cacheManager = "catalogCacheManager")
+    // 이벤트 유입 즉시 메인 화면 캐시 제거
     public void consumeProductUpdatedEvent(ProductUpdatedEvent event) {
         log.info("product.updated 이벤트 수신: {}", event);
         productViewCommandService.updateProductView(event);
@@ -40,6 +45,8 @@ public class ProductEventConsumer {
         topics = "${catalog.kafka.topic.status-changed:product.status-changed}",
         groupId = "${spring.kafka.consumer.group-id:catalog-service-consumer}"
     )
+    @CacheEvict(value = "products_cache", allEntries = true, cacheManager = "catalogCacheManager")
+    // 이벤트 유입 즉시 메인 화면 캐시 제거
     public void consumeProductStatusChangedEvent(ProductStatusChangedEvent event) {
         log.info("product.status-changed 이벤트 수신: {}", event);
         productViewCommandService.updateProductStatus(event);
