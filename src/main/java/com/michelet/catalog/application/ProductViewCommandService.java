@@ -13,6 +13,7 @@ import com.michelet.catalog.infrastructure.messaging.dto.StockRestoredEvent;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -86,7 +87,7 @@ public class ProductViewCommandService {
      * 재고 예약 이벤트를 처리하여 MongoDB 데이터를 갱신함
      */
     public void applyStockReservedEvent(StockReservedEvent event) {
-        // 이벤트 객체 자체가 null인지 가장 먼저 확인
+        // 이벤트 객체 자체의 Null 체킹을 통해 안전성 보장 및 DLT 격리 유도
         if (event == null) {
             throw new IllegalArgumentException("이벤트 페이로드가 null입니다.");
         }
@@ -94,22 +95,19 @@ public class ProductViewCommandService {
         log.info("재고 차감 이벤트 수신: optionId={}, total={}, daily={}",
             event.optionId(), event.totalQuantity(), event.currentDailyStock());
 
-        // 1. 해당 옵션을 가지고 있는 상품 문서 찾기
-        ProductView productView = productViewRepository.findByOptionsOptionId(event.optionId())
-            .orElseThrow(ProductNotFoundException::new);
-
-        // 2. 문서 내의 재고 데이터를 업데이트
-        productView.updateStock(event.optionId(), event.totalQuantity(), event.currentDailyStock());
-
-        // 3. MongoDB에 저장 (덮어쓰기)
-        productViewRepository.save(productView);
-        log.info("MongoDB 재고 차감 업데이트 완료: productId={}", productView.getProductId());
+        // 분리된 진입점들을 하나의 내부 공통 업데이트 파이프라인으로 통합 라우팅
+        this.updateStockQuantity(
+            event.optionId(),
+            event.totalQuantity(),
+            event.currentDailyStock()
+        );
     }
 
     /**
      * 재고 복구 이벤트를 처리하여 MongoDB 데이터를 갱신함
      */
     public void applyStockRestoredEvent(StockRestoredEvent event) {
+        // 객체 자체의 Null 체킹을 통해 안전성 보장 및 DLT 격리 유도
         if (event == null) {
             throw new IllegalArgumentException("이벤트 페이로드가 null입니다.");
         }
@@ -117,16 +115,32 @@ public class ProductViewCommandService {
         log.info("재고 복구 이벤트 수신: optionId={}, total={}, daily={}",
             event.optionId(), event.totalQuantity(), event.currentDailyStock());
 
+        // 분리된 진입점들을 하나의 내부 공통 업데이트 파이프라인으로 통합 라우팅
+        this.updateStockQuantity(
+            event.optionId(),
+            event.totalQuantity(),
+            event.currentDailyStock()
+        );
+    }
+
+    /**
+     * 내부적으로 몽고DB의 특정 상품 서치 및 스냅샷 원자적 갱신을 전담하는 공통 파이프라인
+     */
+    private void updateStockQuantity(UUID optionId, int totalQuantity, int currentDailyStock) {
         // 1. 해당 옵션을 가지고 있는 상품 문서 찾기
-        ProductView productView = productViewRepository.findByOptionsOptionId(event.optionId())
+        ProductView productView = productViewRepository.findByOptionId(optionId)
             .orElseThrow(ProductNotFoundException::new);
 
-        // 2. 문서 내의 재고 데이터를 업데이트 (Inventory가 보내준 복구된 최종 재고로 덮어쓰기)
-        productView.updateStock(event.optionId(), event.totalQuantity(), event.currentDailyStock());
+        // 2. 문서 내의 재고 데이터를 업데이트 (Inventory가 보내준 최종 수치로 덮어쓰기)
+        productView.updateStock(
+            optionId,
+            totalQuantity,
+            currentDailyStock
+        );
 
         // 3. MongoDB에 저장 (덮어쓰기)
         productViewRepository.save(productView);
-        log.info("MongoDB 재고 복구 업데이트 완료: productId={}", productView.getProductId());
+        log.info("MongoDB 재고 상태 최종 동기화 완료: productId={}", productView.getProductId());
     }
 
     // 상품 업데이트 이벤트 수신 처리
@@ -178,14 +192,16 @@ public class ProductViewCommandService {
             throw new IllegalArgumentException("이벤트 페이로드가 null입니다.");
         }
 
-        // findAll()로 인한 OOM 방지를 위해 Batch Processing(Chunk) 도입
+        // 풀스캔으로 인한 OOM 방지를 위해 활성화/품절된 타겟 도큐먼트군만 페이징 세그먼트화
+        List<String> targetStatuses = List.of("ACTIVE", "SOLDOUT");
         int pageSize = 100;
         PageRequest pageRequest = PageRequest.of(0, pageSize);
         Page<ProductView> page;
         int totalProcessed = 0;
 
         do {
-            page = productViewRepository.findAll(pageRequest);
+            // findAll() 대신 인덱스를 타는 커스텀 findByStatusIn 쿼리 메서드 호출
+            page = productViewRepository.findByStatusIn(targetStatuses, pageRequest);
             if (page.isEmpty()) {
                 break;
             }
@@ -212,6 +228,6 @@ public class ProductViewCommandService {
             pageRequest = pageRequest.next();
         } while (page.hasNext());
 
-        log.info("MongoDB 카탈로그 전체 일일 재고 리셋 완료: {}건", totalProcessed);
+        log.info("MongoDB 카탈로그 조건별 청크 단위 배치 재고 리셋 완료: {}건", totalProcessed);
     }
 }

@@ -21,7 +21,7 @@ public class ProductViewQueryService {
 
     // 고객용 - 노출 중인 상품만 조회
     public Page<ProductViewResponse> getActiveProducts(Pageable pageable) {
-        return productViewRepository.findByIsVisibleTrue(pageable)
+        return productViewRepository.findAllVisibleProducts(pageable)
             .map(ProductViewResponse::from);
     }
 
@@ -41,7 +41,7 @@ public class ProductViewQueryService {
     // 내부 통신용 옵션 유효성 검증 로직
     public OptionValidationResponse validateOptionInternal(UUID optionId) {
         // 1. 해당 옵션을 포함하는 상품 뷰 조회 (없으면 예외)
-        ProductView productView = productViewRepository.findByOptionsOptionId(optionId)
+        ProductView productView = productViewRepository.findByOptionId(optionId)
             .orElseThrow(ProductNotFoundException::new);
 
         // 2. 전시 상태 확인
