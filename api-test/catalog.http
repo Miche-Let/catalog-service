@@ -303,7 +303,7 @@ Authorization: Bearer {{cat_user_token}}
     });
 %}
 
-### 0. 자정 스케줄러 지연 동기화 [사전 준비] 품절 테스트를 위한 재고 2개짜리 신규 상품 등록 (OWNER)
+### 0. 일일 스케줄러 지연 동기화 [사전 준비] 품절 테스트를 위한 재고 2개짜리 신규 상품 등록 (OWNER)
 POST http://{{host}}:{{gatewayPort}}/api/v1/products
 Content-Type: application/json
 Authorization: Bearer {{cat_owner_token}}
@@ -378,7 +378,7 @@ Authorization: Bearer {{cat_user_token}}
 %}
 
 
-### 3. [자정 배치 트리거] 시간이 흘러 자정이 되었다고 가정하고 스케줄러 강제 실행
+### 3-1. [일일 배치 트리거] 시간이 흘러 새로운 날이 되었다고 가정하고 스케줄러 강제 실행
 POST http://localhost:19800/internal/scheduler/trigger-visibility
 Accept: application/json
 X-Internal-Token: {{cat_internal_token}}
@@ -386,21 +386,33 @@ X-Internal-Token: {{cat_internal_token}}
 > {%
     client.test("배치 트리거 성공", function () {
         client.assert(response.status === 200, "트리거 실패");
-        client.log("자정 스케줄러 강제 구동 완료");
+        client.log("일일 스케줄러 강제 구동 완료");
+    });
+%}
+
+### 3-2. [일일 배치 트리거] 시간이 흘러 새로운 날이 되었다고 가정하고 스케줄러 강제 실행
+POST http://localhost:19801/internal/scheduler/trigger-visibility
+Accept: application/json
+X-Internal-Token: {{cat_internal_token}}
+
+> {%
+    client.test("배치 트리거 성공", function () {
+        client.assert(response.status === 200, "트리거 실패");
+        client.log("일일 스케줄러 강제 구동 완료");
     });
 %}
 
 
-### 4. [최종 확인] 자정 배치 이후 상품 단건 조회 검증
+### 4. [최종 확인] 일일 배치 이후 상품 단건 조회 검증
 # 스케줄러가 돌았으므로, 이제서야 'isVisible'이 false로 변해야 함
 GET http://{{host}}:{{gatewayPort}}/api/v1/products/{{test26_product_id}}
 Accept: application/json
 Authorization: Bearer {{cat_user_token}}
 
 > {%
-    client.test("자정 배치 이후 노출 상태 변경 확인", function () {
+    client.test("일일 배치 이후 노출 상태 변경 확인", function () {
         var data = response.body.data ? response.body.data : response.body;
-        client.assert(data.isVisible === false, "[실패] 자정 배치가 돌았는데도 isVisible이 여전히 true임");
-        client.log("[최종 성공] 자정 배치가 돌면서 isVisible이 false로 완벽하게 업데이트 됨!");
+        client.assert(data.isVisible === false, "[실패] 일일 배치가 돌았는데도 isVisible이 여전히 true임");
+        client.log("[최종 성공] 일일 배치가 돌면서 isVisible이 false로 완벽하게 업데이트 됨!");
     });
 %}

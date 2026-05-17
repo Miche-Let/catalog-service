@@ -175,7 +175,7 @@ public class ProductView {
         }
     }
 
-    // 자정 배치 스케줄러가 일괄로 노출 상태를 업데이트할 때 사용할 전용 메서드
+    // 일일 배치 스케줄러가 일괄로 노출 상태를 업데이트할 때 사용할 전용 메서드
     public void updateVisibility(boolean isVisible) {
         this.isVisible = isVisible;
     }

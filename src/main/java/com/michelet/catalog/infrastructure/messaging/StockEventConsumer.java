@@ -44,7 +44,7 @@ public class StockEventConsumer {
         groupId = "${spring.kafka.consumer.group-id:catalog-service-consumer}"
     )
     @CacheEvict(value = "products_cache", allEntries = true, cacheManager = "catalogCacheManager")
-    // 자정 전수 스캔 초기화 시에만 캐시 전면 무효화
+    // 일일 전수 스캔 초기화 시에만 캐시 전면 무효화
     public void consumeDailyStockResetEvent(DailyStockResetEvent event) {
         log.info("stock.daily-reset 이벤트 수신: {}", event);
         productViewCommandService.resetAllDailyStocks(event);

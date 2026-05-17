@@ -58,6 +58,12 @@ dependencies {
     testImplementation 'org.testcontainers:junit-jupiter'
 
     implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    // ShedLock core + Spring 연동
+    implementation 'net.javacrumbs.shedlock:shedlock-spring:7.7.0'
+    // Redis Provider
+    implementation 'net.javacrumbs.shedlock:shedlock-provider-redis-spring:7.7.0'
+
 }
 
 dependencyManagement {

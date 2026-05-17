@@ -17,10 +17,10 @@ public class CatalogSchedulerTriggerController {
 
     private final CatalogVisibilityScheduler catalogVisibilityScheduler;
 
-    // 자정 노출 동기화 스케줄러 강제 갱신 버튼 - 테스트용!
+    // 매일 밤 12시 25분 노출 동기화 스케줄러 강제 갱신 버튼 - 테스트용!
     @PostMapping("/trigger-visibility")
     public ResponseEntity<ApiResponse<String>> triggerVisibility() {
         catalogVisibilityScheduler.syncVisibilityAtMidnight();
-        return ResponseEntity.ok(ApiResponse.ok("카탈로그 자정 노출 동기화 스케줄러 작동 완료 (캐시 무효화됨)"));
+        return ResponseEntity.ok(ApiResponse.ok("카탈로그 일일 노출 동기화 스케줄러 작동 완료 (캐시 무효화됨)"));
     }
 }
