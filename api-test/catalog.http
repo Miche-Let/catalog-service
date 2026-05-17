@@ -302,3 +302,117 @@ Authorization: Bearer {{cat_user_token}}
         client.log("[성공] 하드코딩 없이 동적 변수로 캐시 무효화 정합성 증명 완료!");
     });
 %}
+
+### 0. 일일 스케줄러 지연 동기화 [사전 준비] 품절 테스트를 위한 재고 2개짜리 신규 상품 등록 (OWNER)
+POST http://{{host}}:{{gatewayPort}}/api/v1/products
+Content-Type: application/json
+Authorization: Bearer {{cat_owner_token}}
+
+{
+    "restaurantId": "{{dummy_restaurant_id}}",
+    "name": "지연 동기화 테스트 한정판 밀키트",
+    "category": "MEALKIT",
+    "basePrice": 50000,
+    "attributes": {},
+    "exhibition": {
+        "startAt": "2024-01-01T00:00:00",
+        "endAt": "2099-12-31T23:59:59"
+    },
+    "options": [
+        { "name": "한정판 단일 옵션", "addPrice": 0, "totalQuantity": 2, "dailyLimit": 2, "maxLimit": 2 }
+    ]
+}
+
+> {%
+    client.test("테스트용 상품 등록 성공", function () {
+        client.assert(response.status === 200, "상품 등록 실패");
+        client.global.set("test26_product_id", response.body.data.productId);
+        client.global.set("test26_option_id", response.body.data.options[0].optionId);
+        client.log("테스트용 신규 상품 생성 완료! Option ID: " + client.global.get("test26_option_id"));
+    });
+%}
+
+
+### 1. [품절 발생] 등록한 상품의 재고(2개)를 전부 주문하여 SOLDOUT 유발 (USER)
+POST http://{{host}}:{{gatewayPort}}/api/v1/orders
+Content-Type: application/json
+Authorization: Bearer {{cat_user_token}}
+
+{
+    "reservationId": "{{$random.uuid}}",
+    "restaurantId": "{{dummy_restaurant_id}}",
+    "orderName": "전체 품절 유발 주문",
+    "receivingMethod": "PICKUP",
+    "expiredAt": "2099-12-31T23:59:59",
+    "items": [
+        { "optionId": "{{test26_option_id}}", "quantity": 2 }
+    ]
+}
+
+> {%
+    client.test("전체 수량 주문 성공", function () {
+        client.assert(response.status === 201, "주문 실패");
+        client.log("2개 전체 주문 완료! 카프카로 품절 이벤트가 전파됨");
+    });
+%}
+
+
+### 2. [지연 동기화 확인] 품절 직후 상품 단건 조회 검증
+# 상태는 'SOLDOUT'으로 변해야 하지만, 'isVisible'은 여전히 true여야 함!
+< {%
+    client.log("카프카 이벤트 전파를 위해 3초 대기 (버전 호환성 보장 로직)...");
+    var start = new Date().getTime();
+    while (new Date().getTime() < start + 3000) ;
+%}
+GET http://{{host}}:{{gatewayPort}}/api/v1/products/{{test26_product_id}}
+Accept: application/json
+Authorization: Bearer {{cat_user_token}}
+
+> {%
+    client.test("품절 직후 노출 상태 지연 유지 확인", function () {
+        var data = response.body.data ? response.body.data : response.body;
+        client.assert(data.status === "SOLDOUT", "상태가 SOLDOUT이 아님. 현재: " + data.status);
+        client.assert(data.isVisible === true, "[실패] 품절되자마자 isVisible이 false로 바뀜 - 지연 동기화 실패!");
+        client.log("[1차 성공] 품절 상태(SOLDOUT)가 되었지만 화면 노출(isVisible: true)은 안전하게 유지되고 있음!");
+    });
+%}
+
+
+### 3-1. [일일 배치 트리거] 시간이 흘러 새로운 날이 되었다고 가정하고 스케줄러 강제 실행
+POST http://localhost:19800/internal/scheduler/trigger-visibility
+Accept: application/json
+X-Internal-Token: {{cat_internal_token}}
+
+> {%
+    client.test("배치 트리거 성공", function () {
+        client.assert(response.status === 200, "트리거 실패");
+        client.log("일일 스케줄러 강제 구동 완료");
+    });
+%}
+
+### 3-2. [일일 배치 트리거] 시간이 흘러 새로운 날이 되었다고 가정하고 스케줄러 강제 실행
+POST http://localhost:19801/internal/scheduler/trigger-visibility
+Accept: application/json
+X-Internal-Token: {{cat_internal_token}}
+
+> {%
+    client.test("배치 트리거 성공", function () {
+        client.assert(response.status === 200, "트리거 실패");
+        client.log("일일 스케줄러 강제 구동 완료");
+    });
+%}
+
+
+### 4. [최종 확인] 일일 배치 이후 상품 단건 조회 검증
+# 스케줄러가 돌았으므로, 이제서야 'isVisible'이 false로 변해야 함
+GET http://{{host}}:{{gatewayPort}}/api/v1/products/{{test26_product_id}}
+Accept: application/json
+Authorization: Bearer {{cat_user_token}}
+
+> {%
+    client.test("일일 배치 이후 노출 상태 변경 확인", function () {
+        var data = response.body.data ? response.body.data : response.body;
+        client.assert(data.isVisible === false, "[실패] 일일 배치가 돌았는데도 isVisible이 여전히 true임");
+        client.log("[최종 성공] 일일 배치가 돌면서 isVisible이 false로 완벽하게 업데이트 됨!");
+    });
+%}
