@@ -33,9 +33,8 @@ jobs:
             -   name: Run tests # 테스트 실행
                 run: ./gradlew test --no-daemon
 
-            -   name: Generate image tag  # pr이 아닌 push 일때 이미지 태그 생성
-                if: github.event_name == 'push' # 커밋 기반으로 어떤 코드 버전이 배포됐는지 정확히 추적 가능
-                run: echo "IMAGE_TAG=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+            -   name: Generate image tag
+                run: echo "IMAGE_TAG=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_ENV
 
             -   name: Configure AWS credentials (OIDC) # OIDC 기반으로 역할 자격증명
                 if: github.event_name == 'push'
