@@ -74,7 +74,15 @@ public class CatalogVisibilityScheduler {
                         log.warn("[Catalog Batch] 배치 저장 중 낙관적 락 충돌 발생. 단건 저장으로 폴백(Fallback)합니다.", e);
                         for (ProductView product : updateBatch) {
                             try {
-                                productViewRepository.save(product);
+                                // 최신 버전을 DB에서 다시 조회하여 업데이트 (Stale Entity 재사용 방지)
+                                productViewRepository.findByProductId(product.getProductId())
+                                    .ifPresent(freshProduct -> {
+                                        boolean targetVisibility = "ACTIVE".equals(freshProduct.getStatus());
+                                        if (freshProduct.isVisible() != targetVisibility) {
+                                            freshProduct.updateVisibility(targetVisibility);
+                                            productViewRepository.save(freshProduct);
+                                        }
+                                    });
                                 totalUpdated++;
                             } catch (Exception innerException) {
                                 log.error("[Catalog Batch] 상품 노출 상태 단건 업데이트 실패. productId: {}", product.getProductId(),
