@@ -14,8 +14,7 @@ WORKDIR /app
 
 COPY --from=builder /app/build/libs/*.jar app.jar
 
-# SERVER_PORT 변수를 받아 EXPOSE에 적용
-ARG SERVER_PORT
+ARG SERVER_PORT=19800
 EXPOSE ${SERVER_PORT}
 
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

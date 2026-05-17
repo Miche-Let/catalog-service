@@ -1,5 +1,5 @@
 server:
-    port: ${SERVER_PORT}
+    port: ${SERVER_PORT:19800}
 
 spring:
     application:
@@ -27,10 +27,8 @@ spring:
 
     cloud:
         inetutils:
-            ignored-interfaces:
-                - "lo", "docker.*", "veth.*"
-            preferred-networks:
-                - "10.0"
+            ignored-interfaces: [ "lo", "docker.*", "veth.*" ]
+            preferred-networks: [ "10.0" ]
             use-only-site-local-interfaces: true
 
 eureka:

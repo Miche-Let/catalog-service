@@ -89,3 +89,8 @@ bootJar {
     dependsOn asciidoctor
     from("${asciidoctor.outputDir}") { into 'static/docs' }
 }
+
+// plain jar 생성 방지
+jar {
+    enabled = false
+}
