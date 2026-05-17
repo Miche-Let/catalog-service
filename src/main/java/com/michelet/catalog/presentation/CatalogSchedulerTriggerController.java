@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/internal/scheduler")
 @RequiredArgsConstructor
-@Profile("!prod")
+@Profile({"local", "test", "perf"})
 public class CatalogSchedulerTriggerController {
 
     private final CatalogVisibilityScheduler catalogVisibilityScheduler;

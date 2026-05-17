@@ -7,6 +7,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -21,8 +22,9 @@ public class CatalogVisibilityScheduler {
     private final ProductViewRepository productViewRepository;
 
     // 매일 자정(00:00:00)에 실행되며 캐시를 한 번에 폭파함
+    // beforeInvocation=true 옵션 추가 (배치 실패 시 캐시 불일치 방지)
     @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
-    @CacheEvict(value = "products_cache", allEntries = true, cacheManager = "catalogCacheManager")
+    @CacheEvict(value = "products_cache", allEntries = true, cacheManager = "catalogCacheManager", beforeInvocation = true)
     public void syncVisibilityAtMidnight() {
         log.info("[Catalog Batch] 자정 isVisible 일괄 동기화 스케줄러 시작");
 
@@ -52,10 +54,23 @@ public class CatalogVisibilityScheduler {
                 }
             }
 
-            // 변경된 데이터만 선별하여 MongoDB에 저장
+            // 변경된 데이터만 선별하여 MongoDB에 저장 (낙관적 락 충돌 폴백 처리 적용)
             if (!updateBatch.isEmpty()) {
-                productViewRepository.saveAll(updateBatch);
-                totalUpdated += updateBatch.size();
+                try {
+                    productViewRepository.saveAll(updateBatch);
+                    totalUpdated += updateBatch.size();
+                } catch (OptimisticLockingFailureException e) {
+                    log.warn("[Catalog Batch] 배치 저장 중 낙관적 락 충돌 발생. 단건 저장으로 폴백(Fallback)합니다.", e);
+                    for (ProductView product : updateBatch) {
+                        try {
+                            productViewRepository.save(product);
+                            totalUpdated++;
+                        } catch (Exception innerException) {
+                            log.error("[Catalog Batch] 상품 노출 상태 단건 업데이트 실패. productId: {}", product.getProductId(),
+                                innerException);
+                        }
+                    }
+                }
             }
 
             pageRequest = pageRequest.next();
