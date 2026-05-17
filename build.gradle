@@ -64,6 +64,7 @@ dependencies {
     // Redis Provider
     implementation 'net.javacrumbs.shedlock:shedlock-provider-redis-spring:7.7.0'
 
+    runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 }
 
 dependencyManagement {

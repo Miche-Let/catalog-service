@@ -1,0 +1,59 @@
+name: CI-PROD
+
+on:
+    pull_request:
+        branches: [ main ]
+    push:
+        branches: [ main ]
+
+permissions:
+    contents: read
+    id-token: write
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        steps:
+            -   name: Checkout
+                uses: actions/checkout@v4
+
+            -   name: Set up JDK 17
+                uses: actions/setup-java@v4
+                with:
+                    distribution: temurin
+                    java-version: "17"
+
+            -   name: Set up Gradle
+                uses: gradle/actions/setup-gradle@v4
+
+            -   name: Grant execute permission for gradlew
+                run: chmod +x ./gradlew
+
+            -   name: Run tests
+                run: ./gradlew test --no-daemon
+
+            -   name: Generate image tag
+                if: github.event_name == 'push'
+                run: echo "IMAGE_TAG=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+            -   name: Configure AWS credentials (OIDC)
+                if: github.event_name == 'push'
+                uses: aws-actions/configure-aws-credentials@v4
+                with:
+                    role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+                    aws-region: ${{ vars.AWS_REGION }}
+
+            -   name: Login to Amazon ECR
+                if: github.event_name == 'push'
+                uses: aws-actions/amazon-ecr-login@v2
+
+            -   name: Build Docker image
+                if: github.event_name == 'push'
+                run: |
+                    docker build --build-arg SERVER_PORT=${{ vars.SERVER_PORT }} -t ${{ vars.ECR_REGISTRY }}/${{ vars.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} .
+
+            -   name: Push Docker image to ECR
+                if: github.event_name == 'push'
+                run: |
+                    docker push ${{ vars.ECR_REGISTRY }}/${{ vars.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}

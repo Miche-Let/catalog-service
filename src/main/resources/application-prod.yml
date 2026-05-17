@@ -1,0 +1,51 @@
+server:
+    port: ${SERVER_PORT}
+
+spring:
+    application:
+        name: catalog-service
+
+    data:
+        mongodb:
+            host: ${MONGO_HOST}
+            port: ${MONGO_PORT}
+            database: ${MONGO_DB}
+
+        redis:
+            host: ${REDIS_HOST}
+            port: ${REDIS_PORT:6379}
+
+    kafka:
+        bootstrap-servers: ${KAFKA_BROKERS}
+        producer:
+            key-serializer: org.apache.kafka.common.serialization.StringSerializer
+            value-serializer: org.apache.kafka.common.serialization.StringSerializer
+        consumer:
+            key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+            value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+            group-id: catalog-service-group
+
+    cloud:
+        inetutils:
+            ignored-interfaces:
+                - "lo", "docker.*", "veth.*"
+            preferred-networks:
+                - "10.0"
+            use-only-site-local-interfaces: true
+
+eureka:
+    client:
+        enabled: ${EUREKA_ENABLED:false}
+        service-url:
+            defaultZone: http://${EUREKA_HOST}:${EUREKA_PORT}/eureka/
+    instance:
+        prefer-ip-address: true
+
+management:
+    endpoints:
+        web:
+            exposure:
+                include: health,info,prometheus
+    endpoint:
+        health:
+            show-details: always
