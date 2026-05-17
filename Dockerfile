@@ -7,7 +7,7 @@ COPY build.gradle settings.gradle ./
 COPY src src
 
 RUN chmod +x ./gradlew
-RUN ./gradlew bootJar -x test --no-daemon
+RUN ./gradlew bootJar -x test -x asciidoctor --no-daemon
 
 FROM eclipse-temurin:17-jre
 WORKDIR /app
