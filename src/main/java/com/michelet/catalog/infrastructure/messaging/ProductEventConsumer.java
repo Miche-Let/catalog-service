@@ -7,6 +7,7 @@ import com.michelet.catalog.infrastructure.messaging.dto.ProductUpdatedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -33,7 +34,12 @@ public class ProductEventConsumer {
         topics = "${catalog.kafka.topic.product-updated:product.updated}",
         groupId = "${spring.kafka.consumer.group-id:catalog-service-consumer}"
     )
-    @CacheEvict(value = "products_cache", allEntries = true, cacheManager = "catalogCacheManager")
+    @Caching(
+        evict = {
+            @CacheEvict(value = "products_cache", allEntries = true, cacheManager = "catalogCacheManager"),
+            @CacheEvict(value = "product_detail_cache", allEntries = true, cacheManager = "catalogCacheManager")
+        }
+    )
     // 이벤트 유입 즉시 메인 화면 캐시 제거
     public void consumeProductUpdatedEvent(ProductUpdatedEvent event) {
         log.info("product.updated 이벤트 수신: {}", event);
@@ -45,11 +51,11 @@ public class ProductEventConsumer {
         topics = "${catalog.kafka.topic.status-changed:product.status-changed}",
         groupId = "${spring.kafka.consumer.group-id:catalog-service-consumer}"
     )
-    @CacheEvict(
-        value = "products_cache",
-        allEntries = true,
-        condition = "#event.newStatus() != 'SOLDOUT'",
-        cacheManager = "catalogCacheManager"
+    @Caching(
+        evict = {
+            @CacheEvict(value = "products_cache", allEntries = true, condition = "#event.newStatus() != 'SOLDOUT'", cacheManager = "catalogCacheManager"),
+            @CacheEvict(value = "product_detail_cache", allEntries = true, condition = "#event.newStatus() != 'SOLDOUT'", cacheManager = "catalogCacheManager")
+        }
     )
     // SOLDOUT 이외 상태 변경 이벤트 유입 시 메인 화면 캐시 제거
     public void consumeProductStatusChangedEvent(ProductStatusChangedEvent event) {

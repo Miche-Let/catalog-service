@@ -3,7 +3,6 @@ package com.michelet.catalog.infrastructure.config;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
-import com.fasterxml.jackson.databind.jsontype.PolymorphicTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.time.Duration;
 import org.springframework.cache.CacheManager;
@@ -26,20 +25,15 @@ public class RedisCacheConfig {
         // 역직렬화 시 날짜 포맷 깨짐 방지 및 다형성 타입 보존을 위한 커스텀 ObjectMapper
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
-
-        // 무방비 역직렬화 공격 차단을 위한 화이트리스트 보안 필터 적용
-        PolymorphicTypeValidator ptv = BasicPolymorphicTypeValidator.builder()
-            .allowIfSubType("com.michelet.catalog")
-            .allowIfSubType("org.springframework.data.domain")
-            .allowIfSubType("java.util")
-            .allowIfSubType("java.time")
-            .allowIfSubType("java.math")
-            .allowIfBaseType(Object.class)
-            .build();
-
         objectMapper.activateDefaultTyping(
-            ptv,
-            ObjectMapper.DefaultTyping.NON_FINAL,
+            BasicPolymorphicTypeValidator.builder()
+                .allowIfSubType("com.michelet")
+                .allowIfSubType("org.springframework.data.domain")
+                .allowIfSubType("java.util")
+                .allowIfSubType("java.time")
+                .allowIfSubType("java.math")
+                .build(),
+            ObjectMapper.DefaultTyping.EVERYTHING,  // NON_FINAL → EVERYTHING으로 변경
             JsonTypeInfo.As.PROPERTY
         );
 
