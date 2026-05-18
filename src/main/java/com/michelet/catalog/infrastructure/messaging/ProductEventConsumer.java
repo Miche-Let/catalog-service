@@ -37,7 +37,7 @@ public class ProductEventConsumer {
     @Caching(
         evict = {
             @CacheEvict(value = "products_cache", allEntries = true, cacheManager = "catalogCacheManager"),
-            @CacheEvict(value = "product_detail_cache", allEntries = true, cacheManager = "catalogCacheManager")
+            @CacheEvict(value = "product_validate_cache", allEntries = true, cacheManager = "catalogCacheManager")
         }
     )
     // 이벤트 유입 즉시 메인 화면 캐시 제거
@@ -53,11 +53,13 @@ public class ProductEventConsumer {
     )
     @Caching(
         evict = {
+            // SOLDOUT 포함 모든 상태 변경 시에만 products_cache evict (목록 캐시는 조건부 유지)
             @CacheEvict(value = "products_cache", allEntries = true, condition = "#event.newStatus() != 'SOLDOUT'", cacheManager = "catalogCacheManager"),
-            @CacheEvict(value = "product_detail_cache", allEntries = true, condition = "#event.newStatus() != 'SOLDOUT'", cacheManager = "catalogCacheManager")
+            // 상태가 SOLDOUT으로 바뀌어도 단건 상세 캐시는 항상 evict (stale 옵션 검증 방지)
+            @CacheEvict(value = "product_validate_cache", allEntries = true, cacheManager = "catalogCacheManager")
         }
     )
-    // SOLDOUT 이외 상태 변경 이벤트 유입 시 메인 화면 캐시 제거
+    // SOLDOUT 이외 상태 변경 이벤트 유입 시 메인 화면 캐시 제거 / 상세 캐시는 항상 제거
     public void consumeProductStatusChangedEvent(ProductStatusChangedEvent event) {
         log.info("product.status-changed 이벤트 수신: {}", event);
         productViewCommandService.updateProductStatus(event);

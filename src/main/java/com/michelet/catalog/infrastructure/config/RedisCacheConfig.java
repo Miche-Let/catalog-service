@@ -4,7 +4,10 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.michelet.catalog.presentation.dto.OptionValidationResponse;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
@@ -13,6 +16,7 @@ import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
@@ -22,36 +26,54 @@ public class RedisCacheConfig {
 
     @Bean
     public CacheManager catalogCacheManager(RedisConnectionFactory connectionFactory) {
-        // 역직렬화 시 날짜 포맷 깨짐 방지 및 다형성 타입 보존을 위한 커스텀 ObjectMapper
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.registerModule(new JavaTimeModule());
-        objectMapper.activateDefaultTyping(
+
+        // 다형성 타입이 필요한 캐시용 (products_cache 등)
+        ObjectMapper polymorphicMapper = new ObjectMapper();
+        polymorphicMapper.registerModule(new JavaTimeModule());
+        polymorphicMapper.activateDefaultTyping(
             BasicPolymorphicTypeValidator.builder()
                 .allowIfSubType("com.michelet")
                 .allowIfSubType("org.springframework.data.domain")
-                .allowIfSubType("java.util")
-                .allowIfSubType("java.time")
-                .allowIfSubType("java.math")
+                .allowIfSubType("java.util")       // 컬렉션 타입 허용 필수
+                .allowIfSubType("java.time")       // LocalDateTime 등 날짜 타입
+                .allowIfSubType("java.math")       // BigDecimal 등
                 .build(),
-            ObjectMapper.DefaultTyping.EVERYTHING,  // NON_FINAL → EVERYTHING으로 변경
+            ObjectMapper.DefaultTyping.NON_FINAL,
             JsonTypeInfo.As.PROPERTY
         );
+        GenericJackson2JsonRedisSerializer polymorphicSerializer =
+            new GenericJackson2JsonRedisSerializer(polymorphicMapper);
 
-        GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer(objectMapper);
+        // 타입 정보 불필요한 단순 DTO용 (product_validate_cache)
+        // OptionValidationResponse는 UUID/String/BigDecimal만 있어 @class 불필요
+        Jackson2JsonRedisSerializer<OptionValidationResponse> validateSerializer =
+            new Jackson2JsonRedisSerializer<>(OptionValidationResponse.class);
 
-        RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
-            // 캐시 유효 시간 설정 (기본 1시간)
+        // 기본 설정 (products_cache 등에 적용)
+        RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
             .entryTtl(Duration.ofHours(1))
-            // 캐시 Key는 String으로 직렬화
-            .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
-            // 캐시 Value는 JSON 구조로 직렬화하여 가독성 및 호환성 보장
-            .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(serializer))
-            // 몽고DB의 데이터가 null일 경우 캐싱을 방지 (Cache Penetration 방어)
+            .serializeKeysWith(
+                RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
+            .serializeValuesWith(
+                RedisSerializationContext.SerializationPair.fromSerializer(polymorphicSerializer))
             .disableCachingNullValues();
+
+        // product_validate_cache 전용 설정
+        RedisCacheConfiguration validateConfig = RedisCacheConfiguration.defaultCacheConfig()
+            .entryTtl(Duration.ofHours(1))
+            .serializeKeysWith(
+                RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
+            .serializeValuesWith(
+                RedisSerializationContext.SerializationPair.fromSerializer(validateSerializer))
+            .disableCachingNullValues();
+
+        Map<String, RedisCacheConfiguration> cacheConfigs = new HashMap<>();
+        cacheConfigs.put("product_validate_cache", validateConfig);
 
         return RedisCacheManager.RedisCacheManagerBuilder
             .fromConnectionFactory(connectionFactory)
-            .cacheDefaults(config)
+            .cacheDefaults(defaultConfig)
+            .withInitialCacheConfigurations(cacheConfigs)
             .build();
     }
 }

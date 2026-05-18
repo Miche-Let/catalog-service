@@ -58,7 +58,7 @@ public class ProductViewQueryService {
 
     // 내부 통신용 옵션 유효성 검증 로직
     @Cacheable(
-        value = "product_detail_cache",
+        value = "product_validate_cache",
         key = "#optionId",
         cacheManager = "catalogCacheManager"
     )
