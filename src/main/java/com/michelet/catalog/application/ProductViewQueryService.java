@@ -57,6 +57,11 @@ public class ProductViewQueryService {
     }
 
     // 내부 통신용 옵션 유효성 검증 로직
+    @Cacheable(
+        value = "product_validate_cache",
+        key = "#optionId",
+        cacheManager = "catalogCacheManager"
+    )
     public OptionValidationResponse validateOptionInternal(UUID optionId) {
         // 1. 해당 옵션을 포함하는 상품 뷰 조회 (없으면 예외)
         ProductView productView = productViewRepository.findByOptionId(optionId)

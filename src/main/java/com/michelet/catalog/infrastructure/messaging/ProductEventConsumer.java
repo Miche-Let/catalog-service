@@ -7,6 +7,7 @@ import com.michelet.catalog.infrastructure.messaging.dto.ProductUpdatedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -33,7 +34,12 @@ public class ProductEventConsumer {
         topics = "${catalog.kafka.topic.product-updated:product.updated}",
         groupId = "${spring.kafka.consumer.group-id:catalog-service-consumer}"
     )
-    @CacheEvict(value = "products_cache", allEntries = true, cacheManager = "catalogCacheManager")
+    @Caching(
+        evict = {
+            @CacheEvict(value = "products_cache", allEntries = true, cacheManager = "catalogCacheManager"),
+            @CacheEvict(value = "product_validate_cache", allEntries = true, cacheManager = "catalogCacheManager")
+        }
+    )
     // 이벤트 유입 즉시 메인 화면 캐시 제거
     public void consumeProductUpdatedEvent(ProductUpdatedEvent event) {
         log.info("product.updated 이벤트 수신: {}", event);
@@ -45,13 +51,15 @@ public class ProductEventConsumer {
         topics = "${catalog.kafka.topic.status-changed:product.status-changed}",
         groupId = "${spring.kafka.consumer.group-id:catalog-service-consumer}"
     )
-    @CacheEvict(
-        value = "products_cache",
-        allEntries = true,
-        condition = "#event.newStatus() != 'SOLDOUT'",
-        cacheManager = "catalogCacheManager"
+    @Caching(
+        evict = {
+            // SOLDOUT 포함 모든 상태 변경 시에만 products_cache evict (목록 캐시는 조건부 유지)
+            @CacheEvict(value = "products_cache", allEntries = true, condition = "#event.newStatus() != 'SOLDOUT'", cacheManager = "catalogCacheManager"),
+            // 상태가 SOLDOUT으로 바뀌어도 단건 상세 캐시는 항상 evict (stale 옵션 검증 방지)
+            @CacheEvict(value = "product_validate_cache", allEntries = true, cacheManager = "catalogCacheManager")
+        }
     )
-    // SOLDOUT 이외 상태 변경 이벤트 유입 시 메인 화면 캐시 제거
+    // SOLDOUT 이외 상태 변경 이벤트 유입 시 메인 화면 캐시 제거 / 상세 캐시는 항상 제거
     public void consumeProductStatusChangedEvent(ProductStatusChangedEvent event) {
         log.info("product.status-changed 이벤트 수신: {}", event);
         productViewCommandService.updateProductStatus(event);
